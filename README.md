@@ -2,7 +2,6 @@
 <div align="center">
 
 <img src="./Assets/logo.png" width="40%" />
-<img src="./Assets/blume.gif" width="40%" />
 </div>
 
 ## Description
