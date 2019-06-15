@@ -1,7 +1,7 @@
                                                                                               
 <div align="center">
 
-<img src="./Assets/logo.gif" width="40%" />
+<img src="./Assets/logo.gif" width="10%" />
 </div>
 
 ## Description
