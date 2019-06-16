@@ -11,7 +11,7 @@
 #|   _______sda1_______________sda2________   |  |      _____sda1_____________sda2________      |
 #|  |                 |                    |  |  |     |              |                   |     |
 #|  |      ROOTFS     |                    |  |  |     |              |       ROOT        |     |
-#|  |       HOME      |       SWAPFS       |  |  |     |   EFI_PART   |     SWAPFILE      |     |
+#|  |       HOME      |      SWAP_PART     |  |  |     |   EFI_PART   |     SWAPFILE      |     |
 #|  |       BOOT      |                    |  |  |     |              |                   |     |
 #|  |_________________|____________________|  |  |     |______________|___________________|     |
 #|                                            |  |                                              |
@@ -585,12 +585,12 @@ FUNCT_update_changes_to_system
 function FUNCT_cleanup(){
 	for UNMOUNT in /mnt/proc /mnt/sys /mnt/dev /mnt
 	do
-		printf '[%bINFO%b] Unmounting %s\n' $YELLOW $NC $UNMOUNT >&2
 		if [ ! -z $_uuid_of_efi_part ] && [ $UNMOUNT == '/mnt/dev' ] 
 		then
-			printf '[%bINFO%b] Unmounting EFI partition\n' $YELLOW $NC >&2
+			printf '[%bINFO%b] Unmounting /mnt/boot/efi\n' $YELLOW $NC >&2
 			sudo umount /mnt/boot/efi
 		fi
+		printf '[%bINFO%b] Unmounting %s\n' $YELLOW $NC $UNMOUNT >&2
 		sudo umount $UNMOUNT
 	done
 	#Close the LUKS device
