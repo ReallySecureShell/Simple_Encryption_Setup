@@ -3,35 +3,35 @@
 #This is an offline full-disk encryption tool for the purpose of adding FDE to a drive without loosing data on said drive.
 
 #This program will work with the following setup
-#Drive SDA will be used as an example, by no means do the partitions have to be in the order of which they appear.
+#Drive SDA will be used as an example.
 #
 #
-# _____________DOS_Partition_table____________
-#|                                            |
-#|   _______sda1_______________sda2________   |
-#|  |                 |                    |  |
-#|  |      ROOTFS     |                    |  |
-#|  |       HOME      |       SWAPFS       |  |
-#|  |       BOOT      |                    |  |
-#|  |_________________|____________________|  |
-#|                                            |
-#|____________________________________________|
+# _____________DOS_Partition_table____________    ______________EFI_Partition_table_____________
+#|                                            |  |                                              |
+#|   _______sda1_______________sda2________   |  |      _____sda1_____________sda2________      |
+#|  |                 |                    |  |  |     |              |                   |     |
+#|  |      ROOTFS     |                    |  |  |     |              |       ROOT        |     |
+#|  |       HOME      |       SWAPFS       |  |  |     |   EFI_PART   |     SWAPFILE      |     |
+#|  |       BOOT      |                    |  |  |     |              |                   |     |
+#|  |_________________|____________________|  |  |     |______________|___________________|     |
+#|                                            |  |                                              |
+#|____________________________________________|  |______________________________________________|
+#                                                                                                
+#                                                                                                
+#                                           ---OR---                                             
+#                                                                                                
+# _____________DOS_Partition_table____________    ______________EFI_Partition_table_____________
+#|                                            |  |                                              |
+#|             ______sda1_______              |  |    ____sda1_________sda2_________sda3____    |
+#|            |                 |             |  |   |            |             |           |   |
+#|            |     ROOTFS      |             |  |   |            |             |           |   |
+#|            |      HOME       |             |  |   |  EFI_PART  |  SWAP_PART  |   ROOT    |   |
+#|            |      BOOT       |             |  |   |            |             |           |   |
+#|            |    SWAPFILE     |             |  |   |            |             |           |   |
+#|            |_________________|             |  |   |____________|_____________|___________|   |
+#|                                            |  |                                              |
+#|____________________________________________|  |______________________________________________|
 #
-#                  ---OR---
-#
-# _____________DOS_Partition_table____________
-#|                                            |
-#|             ______sda1_______              |
-#|            |                 |             |
-#|            |     ROOTFS      |             |
-#|            |      HOME       |             |
-#|            |      BOOT       |             |
-#|            |     SWAPFS      |             |
-#|            |_________________|             |
-#|                                            |
-#|____________________________________________|
-#
-#Take note that in this setup /boot is NOT a separate partition.
 
 #Is the terminal capable of color?
 case $TERM in
@@ -129,6 +129,105 @@ function FUNCT_get_rootfs_mountpoint(){
 	fi
 }
 FUNCT_get_rootfs_mountpoint
+
+#Check if /boot/grub/x86_64-efi exists, if so
+#determine the mountpoint of the EFI partition.
+#and verify that it is a valid efi partition.
+function FUNCT_detect_partition_table_type(){
+	#Temporarily mount the root filesystem to search for EFI.
+	printf '[%bINFO%b] Temporarily mounting %s to determine partition table type\n' $YELLOW $NC $_initial_rootfs_mount >&2
+
+	#Check if a filesystem is already mounted on /mnt
+	if [[ `mountpoint /mnt` == '/mnt is not a mountpoint' ]]
+	then
+		sudo mount $_initial_rootfs_mount /mnt
+		if [[ `mountpoint /mnt` == '/mnt is a mountpoint' ]]
+		then
+			printf '[%bOK%b]   Successfully mounted %s to /mnt\n' $GREEN $NC $_initial_rootfs_mount >&2
+		else
+			#Dont assume everything is fine if the drive we specifically asked for will not mount.
+			printf '[%bFAIL%b] Unable to mount %s to /mnt\n' $RED $NC $_initial_rootfs_mount >&2 
+			exit 1
+		fi
+	fi
+
+	#Has grub been installed with EFI support?
+	if [ -d '/mnt/boot/grub/x86_64-efi' ]
+	then
+		printf '[%bINFO%b] Grub reports being installed with EFI support. Verifying\n' $YELLOW $NC >&2
+		
+		#Check /mnt/etc/fstab for /boot/efi
+		printf '[%bINFO%b] Reading fstab information for the %s filesystem\n' $YELLOW $NC $_initial_rootfs_mount >&2
+
+		#Get the UUID of the EFI partition from /mnt/etc/fstab
+		#Use the below variable to mount the efi partition and
+		#check its contents, verifying that it is a valid EFI
+		#partition. This variable can also be used to quickly
+		#mount the efi partition if needed.
+		_uuid_of_efi_part=`sed -n '/\/boot\/efi/{
+		/^UUID\=/{
+			s/^UUID\=//
+			s/ .*//
+			p
+		}
+		}' /mnt/etc/fstab`
+
+		#Verify that the value found is a valid EFI partition.
+		#If the _uuid_of_efi_part value is empty, that tells the rest of the
+		#script to use DOS instead.
+		if [ -z $_uuid_of_efi_part ]
+		then
+			printf '[%bINFO%b] Failed to detect the location of the EFI partition\n' $YELLOW $NC >&2
+		else
+			printf '[%bINFO%b] Potential EFI partition discovered with the UUID of: %s\n' $YELLOW $NC $_uuid_of_efi_part >&2
+
+			#Mount the EFI partition in /mnt/boot/efi
+			printf '[%bINFO%b] Mounting potential EFI partition: %s\n' $YELLOW $NC $_uuid_of_efi_part >&2
+			sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
+			
+			#Check /mnt/boot/efi, basic check to see if the files in there exist or not.
+			local counter=0
+			for EFI_FILES in '/mnt/boot/efi/EFI/boot/BOOTX64.EFI' '/mnt/boot/efi/EFI/boot/fbx64.efi'
+			do
+				if [ -e $EFI_FILES ]
+				then
+					printf 'Verified existence of: %s\n' $EFI_FILES
+				else
+					printf '%s: Does not exist\n' $EFI_FILES
+					counter=$(($counter+1))
+				fi
+			done
+
+			#Did one or more critical EFI files go undiscovered?
+			if [[ $counter -gt '0' ]]
+			then
+				printf '[%bWARN%b] %s: partition is deemed invalid do to above errors\n         Will use DOS instead\n' $RED $NC $_uuid_of_efi_part >&2
+				unset _uuid_of_efi_part
+			else
+				printf '[%bOK%b]   %s: is a valid EFI partition\n' $GREEN $NC $_uuid_of_efi_part >&2
+			fi
+
+			#Unmount the mounted EFI partition
+			printf '[%bINFO%b] Unmounting /mnt/boot/efi\n' $YELLOW $NC >&2
+			sudo umount /mnt/boot/efi
+		fi
+	else
+		printf '[%bINFO%b] Partition table type is DOS\n' $YELLOW $NC >&2
+	fi
+
+	#Unmount the root partition
+	printf '[%bINFO%b] Detection finished, unmounting /mnt\n' $YELLOW $NC >&2
+	sudo umount /mnt
+	if [ -z $_uuid_of_efi_part ]
+	then
+		printf '[%bINFO%b] Will install for the i386 platform\n' $YELLOW $NC >&2
+		_target_platform='i386-pc'
+	else
+		printf '[%bINFO%b] Will install for the x86_64-efi platform\n' $YELLOW $NC >&2
+		_target_platform='x86_64-efi'
+	fi
+}
+FUNCT_detect_partition_table_type
 
 function FUNCT_initial_drive_encrypt(){
 	if [[ ${_resume_array[1]} != "e2fsck" ]]
@@ -243,8 +342,16 @@ function FUNCT_add_rootfs_to_crypttab(){
 	#Get the UUID of the root filesystem.
 	#Note this is NOT the mapper UUID but
 	#the UUID of the actual encrypted
-	#partition. 
-	local _rootfs_uuid=`sudo chroot /mnt blkid -t TYPE="crypto_LUKS" | grep -Eo '(.){8}\-((.){4}\-){3}(.){12}'`
+	#partition. 	
+	local _sed_compatible_rootfs_mount_name=$(sed 's/\//\\\//g' <<< $_initial_rootfs_mount)
+
+	local _rootfs_uuid=$(sed -n '/'"$_sed_compatible_rootfs_mount_name"'/{
+        s/^.*:\ //
+        s/\ .*//
+        s/UUID\=//
+        s/[\"]//g
+        p
+        }' <<< `sudo chroot /mnt blkid`)
 
 	#Ask the user if they want to allow TRIM operations for SSDs.
 	#If the user is using an HDD, they should say No (N).
@@ -350,14 +457,24 @@ function FUNCT_modify_grub_configuration(){
 	#Get the device to reinstall grub too.
 	local _grub_install_device=${_initial_rootfs_mount%%[0-9]}
 
-	#Tell the user that grub is being installed.
-	printf '[%bINFO%b] Installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
+	#Mount EFI partition if installing for EFI.
+	#And install grub with EFI.
+	#Else install for DOS.
+	if [ $_target_platform == 'x86_64-efi' ]
+	then
+		#Mount EFI partition in /mnt/boot/efi
+		printf '[%bINFO%b] Mounting EFI partition: %s to /mnt/boot/efi\n' $YELLOW $NC $_uuid_of_efi_part >&2
+		sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
 
-	#Now re-install grub with some extra modules installed.
-	sudo chroot /mnt grub-install --recheck --modules="part_gpt part_msdos" $_grub_install_device
-
-	#Tell the user the grub install has finnished
-	printf '[%bINFO%b] Finished installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
+		#Install grub with EFI support		
+		printf '[%bINFO%b] Installing grub with EFI support\n' $YELLOW $NC >&2
+		sudo chroot /mnt grub-install --target=$_target_platform --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --modules="part_gpt part_msdos" --recheck
+		sudo chroot /mnt grub-mkconfig -o /boot/efi/EFI/ubuntu/grub/grub.cfg
+	else
+		#Install grub with i386 architecture support ONLY.
+        	printf '[%bINFO%b] Installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
+		sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_install_device
+	fi
 }
 if [[ ${_resume_array[8]} != "grub_config" ]]
 then
@@ -371,7 +488,7 @@ function FUNCT_create_encrypted_swap(){
 	#See if any SWAP devices are present before asking which one the user wants to encrypt.
 	if [[ -z `sudo chroot /mnt blkid -t TYPE="swap"` ]]
 	then
-		printf '[%bINFO%b] No swap filesystems present\n' $YELLOW $NC >&2
+		printf '[%bINFO%b] No swap filesystem(s) present\n' $YELLOW $NC >&2
 
 		#If no swap devices are present, exit function.
 		return 0
@@ -463,3 +580,24 @@ function FUNCT_update_changes_to_system(){
 	printf '[%bINFO%b] It is alright that the initramfs updater was not able to find the unlock.key file.\n       This is because the unlock.sh script contains the location of the keyfile relative\n       to the initramfs image and not the primary root filesystem.\n' $YELLOW $NC >&2
 }
 FUNCT_update_changes_to_system
+
+#Unmount partitions
+function FUNCT_cleanup(){
+	for UNMOUNT in /mnt/proc /mnt/sys /mnt/dev /mnt
+	do
+		printf '[%bINFO%b] Unmounting %s\n' $YELLOW $NC $UNMOUNT >&2
+		if [ ! -z $_uuid_of_efi_part ] && [ $UNMOUNT == '/mnt/dev' ] 
+		then
+			printf '[%bINFO%b] Unmounting EFI partition\n' $YELLOW $NC >&2
+			sudo umount /mnt/boot/efi
+		fi
+		sudo umount $UNMOUNT
+	done
+	#Close the LUKS device
+	printf '[%bINFO%b] Closing mapped ROOT device: /dev/mapper/%s\n' $YELLOW $NC $_rootfs_mapper_name >&2
+	sudo cryptsetup close /dev/mapper/$_rootfs_mapper_name
+	
+	#End message
+	printf '[%bDONE%b] Cleanup complete. Exiting\n' $GREEN $NC >&2
+}
+FUNCT_cleanup
