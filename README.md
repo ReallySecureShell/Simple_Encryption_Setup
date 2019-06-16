@@ -14,8 +14,18 @@ You <b>cannot</b> encrypt your system while it's in use. You must boot into anot
 A good choice is to burn a clonezilla iso to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
 
 ### Required Packages
+Really there are two required packages. All others should be provided by your distribution and the Clonezilla live-CD.
+
+| Packages |
+| :--- |
+| Initramfs-tools |
+| cryptsetup |
 
 ### Live-CD
+
+Download the Clonezilla ISO
+      
+<a href="https://mirrors.xtom.com/osdn//clonezilla/71030/clonezilla-live-2.6.1-25-amd64.iso">clonezilla-live-2.6.1-25</a>
 
 ### Backup System
 
@@ -23,8 +33,8 @@ A good choice is to burn a clonezilla iso to a USB drive. Clonezilla has all the
 
 ### Tested Distributions
 put these in tables
-Ubuntu 18.04 DOS and EFI 
-Zorin OS 15 DOS
+Ubuntu 18.04 EFI and DOS 
+Zorin OS 15 EFI and DOS
 
 ## Limitations
 
