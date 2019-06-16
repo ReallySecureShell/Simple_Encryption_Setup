@@ -6,11 +6,12 @@
 
 ## Description
 
-This utility aims to help users quickly setup full-disk encryption on x86_64 or i386 based systems.
+This utility aims to help users quickly setup full-disk encryption, with the intent of providing a basic encryption setup for the user.
 
 ## Pre-Setup
 
-You <b>cannot</b> encrypt your system while it's in use. You must boot into another medium (such as a Clonezilla-live CD) to run this script.
+You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
+A good choice is to burn a clonezilla iso to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
 
 ### Required Packages
 
@@ -19,6 +20,11 @@ You <b>cannot</b> encrypt your system while it's in use. You must boot into anot
 ### Backup System
 
 ### Partition Layout
+
+### Tested Distributions
+put these in tables
+Ubuntu 18.04 DOS and EFI 
+Zorin OS 15 DOS
 
 ## Limitations
 
@@ -33,14 +39,20 @@ Check to see if other non-ubuntu distros work
 
     curl --location 'https://tinyurl.com/yxekdxwq' > encrypt.sh && chmod 744 encrypt.sh
 
-## Running the script
+## Running The Script
 
 Example output for an operation
 Explanation of questions the script asks the user.
 
-### Manually configuring
+### Manually Configuring
 
-  All configuration options that are actually run when the script runs
+  All configuration options that are actually run when the script runs\
+
+#### General Configuration
+
+#### Specific for EFI
+
+#### Specific for i386
 
 ## Post Execution
 reboot system 
