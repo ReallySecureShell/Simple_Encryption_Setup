@@ -579,6 +579,13 @@ function FUNCT_create_encrypted_swap(){
 	#Reset ownership on /mnt/etc/fstab
 	sudo chown root:root /mnt/etc/fstab	
 
+	#If the resume file does not exist, create it.
+	if [ ! -e /mnt/etc/initramfs-tools/conf.d/resume ]
+	then
+		printf '[%bINFO%b] Creating resume file at /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
+		sudo chroot /mnt touch /mnt/etc/initramfs-tools/conf.d/resume
+	fi
+
 	#Edit the RESUME file found at /etc/initramfs-tools/conf.d/resume
 	#This is so the resume function will always point to our fixed-named swap partition.
 	printf '[%bINFO%b] Modifying /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
