@@ -32,6 +32,11 @@ If you have a version of Clonezilla already, <b>make sure</b> it's at least vers
 
 ### Backup System
 
+Now boot into the Clonezilla USB you've just made. 
+
+You'll be prompted to enter your language and keyboard layout. Before arriving at this screen:
+
+<img src="./Assets/Clonezilla_backup_step_1.png" width="40%" />
 
 
 ### Partition Layout
