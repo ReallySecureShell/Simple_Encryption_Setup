@@ -67,7 +67,7 @@ function FUNCT_post_initialization(){
 		printf '[%bOK%b]   Proceeding with setup\n' $GREEN $NC >&2
 	;;
 	n|N)
-		printf '[%bFAIL%b] Install cryptsetup on target system before encrypting!\n' $RED $NC >&2
+		printf '[%bFAIL%b] Install specified packages on target system before encrypting!\n' $RED $NC >&2
 		exit 1
 	;;
 	*)
