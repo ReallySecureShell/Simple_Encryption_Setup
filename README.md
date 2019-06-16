@@ -14,18 +14,20 @@ You <b>cannot</b> encrypt your system while it's in use. You must boot into anot
 A good choice is to burn a clonezilla iso to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
 
 ### Required Packages
-Really there are two required packages. All others should be provided by your distribution and the Clonezilla live-CD.
+There are two required packages: initramfs-tools, and cryptsetup.
 
-| Packages |
-| :--- |
-| Initramfs-tools |
-| cryptsetup |
+Both are available in the default Ubuntu repositories. And it is assumed that most Ubuntu derivatives will also carry these packages.
 
-### Live-CD
+    sudo apt update
+    sudo apt install cryptsetup initramfs-tools
+
+### Get a Live-CD
 
 Download the Clonezilla ISO
       
 <a href="https://mirrors.xtom.com/osdn//clonezilla/71030/clonezilla-live-2.6.1-25-amd64.iso">clonezilla-live-2.6.1-25</a>
+
+If you need an image writer you can <a href="http://wiki.rosalab.ru/ru/images/2/24/RosaImageWriter-2.6.1-lin-x86_64.txz">Download</a> RosaImageWriter.
 
 ### Backup System
 
