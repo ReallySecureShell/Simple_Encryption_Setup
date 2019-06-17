@@ -8,11 +8,12 @@
 
 This script is designed to encrypt a users root and swap partitions without loosing data. The intention of which is to stop your data from being accessed if your drive (a laptop for example) is stolen.
 
-* <a href="#pre-setup">1.0: Pre-Setup</a>
+* <a href="#download">1.0: Download</a>
+* <a href="#pre-setup">2.0: Pre-Setup</a>
   * <a href="#required-packages">Required Packages</a>
   * <a href="#get-a-live-cd">Get a Live-CD</a>
   * <a href="#backup-your-system">Backup Your System</a>
-* <a href="#limitations">2.0: Limitations</a>
+* <a href="#limitations">3.0: Limitations</a>
 
 ## Download
 
