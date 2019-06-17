@@ -6,7 +6,7 @@
 
 ## Description
 
-This utility aims to help users quickly setup full-disk encryption, with the intent of providing a basic encryption setup for the user.
+This script is designed to encrypt a users root and swap partitions without loosing data. The intention of which is to stop your data from being accessed if your drive (a laptop for example) is stolen.
 
 * <a href="#pre-setup">1.0: Pre-Setup</a>
   * <a href="#required-packages">Required Packages</a>
