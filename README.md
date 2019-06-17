@@ -13,13 +13,16 @@ This utility aims to help users quickly setup full-disk encryption, with the int
   * <a href="#get-a-live-cd">Get a Live-CD</a>
   * <a href="#backup-your-system">Backup Your System</a>
   * <a href="#partition-layout">Partition Layout</a>
+* <a href="#limitations">2.0: Limitations</a>
   
 ## Pre-Setup
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
 A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
 
-<b color=red>Before proceeding please visit the Limitations section to determine if your system is compatible before continuing.</b>
+<b color=red>Before proceeding please visit the <a href="#limitations">Limitations</a>
+
+Before proceeding please visit the Limitations section to determine if your system is compatible before continuing. section to determine if your system is compatible before continuing.</b>
 
 ### Required Packages
 There are two required packages: initramfs-tools, and cryptsetup. Both are available in the default Ubuntu repositories. And it is assumed that most Ubuntu derivatives will also carry these packages.
@@ -109,6 +112,8 @@ You will get output looking like this:
     /dev/sda1  /  ext4    errors=remount-ro  0       1
     # /boot was on /dev/sda2 during installation
     /dev/sda2  /boot  ext2    defaults       0       2
+
+For this next part reference your fstab to the following diagram:
 
 ## Limitations
 
