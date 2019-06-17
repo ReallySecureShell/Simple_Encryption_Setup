@@ -102,7 +102,7 @@ First we need to `determine which partition stores your / directory`. To do this
 
 * Reboot into your system and run: `cat /etc/fstab` then take a picture of the output with your phone. Then boot back into the Clonezilla shell (option to boot into shell is the screen just after picking the keyboard).
 
-Once your `/` directory is mounted, `cat /mnt/etc/fstab` (unless you've already done the last option).
+Once your `/` directory is mounted, `cat /mnt/etc/fstab`.
 
 The output of fstab will look like this:
 
