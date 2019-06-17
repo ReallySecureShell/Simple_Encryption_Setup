@@ -10,7 +10,7 @@ This utility aims to help users quickly setup full-disk encryption, with the int
 
 | INDEX |
 | :--- |
-|1.0: <a href="./Pre-Setup">Pre-Setup</a> |
+|1.0: <a href="#pre-setup">Pre-Setup</a> |
 
 ## Pre-Setup
 
