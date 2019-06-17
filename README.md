@@ -85,7 +85,9 @@ Choose: -p choose
 
 ### Partition Layout
 
-We will now need to check that the system is able to be 
+Before we can start encrypting we need to check the partition layouts on your device. Load into the Clonezilla terminal and the below command:
+
+   lsblk
 
 
 ## Limitations
