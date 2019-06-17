@@ -13,7 +13,11 @@ This script is designed to encrypt a users root and swap partitions without loos
   * <a href="#get-a-live-cd">Get a Live-CD</a>
   * <a href="#backup-your-system">Backup Your System</a>
 * <a href="#limitations">2.0: Limitations</a>
-  
+
+## Download
+
+    curl --location 'https://tinyurl.com/yxekdxwq' > encrypt.sh && chmod 744 encrypt.sh
+
 ## Pre-Setup
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
@@ -123,10 +127,6 @@ Note: The partition "ROOT" is <b>implicit</b> to all files/directories (except f
   |________________________|        |________________________|
 
 ```
-
-## Download
-
-    curl --location 'https://tinyurl.com/yxekdxwq' > encrypt.sh && chmod 744 encrypt.sh
 
 ## In-Depth Operation
 
