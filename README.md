@@ -54,6 +54,19 @@ Choose: The directory where you want to store the image
 Choose: Beginner
 <img src="./Assets/Clonezilla_backup_step_6.png" width="85%" />
 
+Choose: savedisk
+<img src="./Assets/Clonezilla_backup_step_7.png" width="85%" />
+
+Optionally write a name for your image or leave it as the default.
+<img src="./Assets/Clonezilla_backup_step_8.png" width="85%" />
+
+Choose: The drive you want to backup
+<img src="./Assets/Clonezilla_backup_step_9.png" width="85%" />
+
+Choose: -sfsck
+<img src="./Assets/Clonezilla_backup_step_10.png" width="85%" />
+
+
 ### Partition Layout
 
 ### Tested Distributions
