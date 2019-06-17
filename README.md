@@ -85,7 +85,7 @@ Choose: -p choose
 
 ### Partition Layout
 
-Before we can start encrypting we need to check the partition layouts on your device.
+Before we can start encrypting we need to know the mountpoints of your current partitions.
 
 To get all the partitions on the device run:
 
@@ -95,13 +95,20 @@ Ignore `loop0` (it's the mountpoint of the Clonezilla drive).
 
 First we need to `determine which partition stores your / directory`. To do this you can either:
 
-* Keep mounting partitions ONE AT A TIME into /mnt: `sudo mount /PARTITION /mnt`determine (Replace PARTITION with the partitions from the lsblk command). Once you've mounted and checked a partition you can unmount it with: `sudo umount /mnt` BUT DONT UNMOUNT THE PARTITION CONTAINING YOUR `/` DIRECTORY ONCE YOU'VE FOUND IT!
+* Keep mounting partitions ONE AT A TIME into /mnt: `sudo mount /PARTITION /mnt` (Replace PARTITION with the partitions from the lsblk command). Once you've mounted a partition, check its contents with `ls /mnt`. You can unmount the partition with `sudo umount /mnt` <b>IF</b> it does not contain your `/` directory.
 
-* Mount the / partition if you know it.
+* Mount the `/` partition if you know it.
 
-* Reboot into your system: cat /etc/fstab then take a picture of the output with your phone. Then boot back into the Clonezilla shell (option to boot into shell is the screen just after picking the keyboard).
+* Reboot into your system and run: `cat /etc/fstab` then take a picture of the output with your phone. Then boot back into the Clonezilla shell (option to boot into shell is the screen just after picking the keyboard).
 
+Once your `/` directory is mounted, `cat /mnt/etc/fstab` (unless you've already done the last option).
 
+You will get output looking like this:
+
+    # <file system> <mount point>   <type>  <options>       <dump>  <pass>
+    /dev/sda1  /  ext4    errors=remount-ro  0       1
+    # /boot was on /dev/sda2 during installation
+    /dev/sda2  /boot  ext2    defaults       0       2
 
 ## Limitations
 
