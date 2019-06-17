@@ -83,7 +83,7 @@ Choose: -senc Not to encrypt the image
 Choose: -p choose (boot into the shell when finished)
 <img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
 ```
-### Partition Layout
+### Partition Layout - might delete, make part of limitations
 
 Before we can start encrypting we need to know the mountpoints of your current partitions.
 
