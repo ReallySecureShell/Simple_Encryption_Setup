@@ -85,9 +85,22 @@ Choose: -p choose
 
 ### Partition Layout
 
-Before we can start encrypting we need to check the partition layouts on your device. Load into the Clonezilla terminal and the below command:
+Before we can start encrypting we need to check the partition layouts on your device.
 
-   lsblk
+To get all the partitions on the device run:
+
+    lsblk
+
+Ignore `loop0`, it's the Clonezilla drive.
+
+First we need to `determine which partition stores your / directory`. To do this you can either:
+
+* Keep mounting partitions ONE AT A TIME into /mnt: sudo mount /PARTITION /mnt (Replace PARTITION with the partitions from the lsblk command). Once you've mounted and checked a partition you can unmount it with: `sudo umount /mnt`
+
+* Mount the / partition if you know it.
+
+* Reboot into your system: cat /etc/fstab then take a picture of the output with your phone. Then boot back into the Clonezilla shell (option to boot into shell is the screen just after picking the keyboard).
+
 
 
 ## Limitations
