@@ -43,6 +43,7 @@ Now boot into the Clonezilla USB you've just made. <b>You will also need another
 
 You'll be prompted to enter your language and keyboard layout. Before arriving at this screen:
 
+```
 Choose: Start_Clonezilla
 <img src="./Assets/Clonezilla_backup_step_1.png" width="85%" />
 
@@ -81,6 +82,7 @@ Choose: -senc Not to encrypt the image
 
 Choose: -p choose (boot into the shell when finished)
 <img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
+```
 
 ### Partition Layout
 
