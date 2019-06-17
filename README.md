@@ -136,7 +136,7 @@ The following subsections will discuss the inner workings of the script. This in
 
 This function is called `FUNCT_detect_partition_table_type`. Its purpose is to detect weather the partition table is DOS or EFI.
 
-First we check if the mounted partition (which contains your `/`) contains the `x86_64-efi` directory:
+First we check if the mounted partition (your `/`) contains the `x86_64-efi` directory:
 
 ```bash
 ...
