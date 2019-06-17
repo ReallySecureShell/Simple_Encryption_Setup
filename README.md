@@ -39,7 +39,7 @@ If you have a version of Clonezilla already, <b>make sure it's at least version 
 
 ### Backup Your System
 
-Now boot into the Clonezilla USB you've just made. You will also need another drive (that isn't the one you're encrypting) to store the device image.
+Now boot into the Clonezilla USB you've just made. <b>You will also need another drive (that isn't the one you're encrypting) to store the device image</b>.
 
 You'll be prompted to enter your language and keyboard layout. Before arriving at this screen:
 
