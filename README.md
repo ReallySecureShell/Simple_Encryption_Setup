@@ -83,6 +83,7 @@ Choose: -p choose (boot into the shell when finished)
 <img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
 
 ```
+
 ## Limitations
 
 | Drawbacks and Shortcomings |
@@ -97,7 +98,7 @@ Choose: -p choose (boot into the shell when finished)
 
 The diagram that follows details known working partition schemes. If your partitions do not match any of the following, there is NO GUARANTEE that the script will operate properly.
 
-Note: The partition "ROOT" is implicit to all <b>files/directories</b> (except for the swapfile) in the filesystem. For example, if you could have a separate `/home` partition, it would be explicitly specified.
+Note: The partition "ROOT" is <b>implicit</b> to all files/directories (except for the swapfile). For example, if you could have a separate `/home` partition, it would be explicitly specified.
 
 ```
 1: ________________________       2: ________________________ 
@@ -121,7 +122,7 @@ Note: The partition "ROOT" is implicit to all <b>files/directories</b> (except f
   |          SWAP          |        |                        |
   |________________________|        |________________________|
 
-``` 
+```
 
 ## Download
 
@@ -129,14 +130,34 @@ Note: The partition "ROOT" is implicit to all <b>files/directories</b> (except f
 
 ## In-Depth Operation
 
-Example output for an operation
-Explanation of questions the script asks the user.
+The following subsections will discuss the inner workings of the script. This information is provided to help the user replicate and improve upon the existing code.
 
-### Manually Configuring
+### Auto Detect Partition Table Type
 
-  All configuration options that are actually run when the script runs\
+This function is called `FUNCT_detect_partition_table_type`. Its purpose is to detect weather the partition table is DOS or EFI.
 
-#### General Configuration
+First we check if the mounted partition (which contains your `/`) contains the `x86_64-efi` directory:
+
+```bash
+...
+#Has grub been installed with EFI support?
+if [ -d '/mnt/boot/grub/x86_64-efi' ]
+then
+...
+```
+
+If so try to get the UUID of the EFI partition from the filesystem's /etc/fstab:
+
+```bash
+_uuid_of_efi_part=`sed -n '/\/boot\/efi/{
+   /^UUID\=/{
+    s/^UUID\=//
+    s/ .*//
+    p
+}
+}' /mnt/etc/fstab`
+```
+STOPPED HERE
 
 #### Specific for EFI
 
