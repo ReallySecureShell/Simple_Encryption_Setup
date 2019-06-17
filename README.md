@@ -111,10 +111,6 @@ The output of fstab will look like this:
     # /boot was on /dev/sda2 during installation
     /dev/sda2  /boot  ext2    defaults       0       2
 
-For this next part reference your fstab to the following diagram:
-
-
-
 
 
 ## Limitations
