@@ -83,7 +83,6 @@ Choose: -senc Not to encrypt the image
 Choose: -p choose (boot into the shell when finished)
 <img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
 ```
-
 ### Partition Layout
 
 Before we can start encrypting we need to know the mountpoints of your current partitions.
@@ -111,7 +110,7 @@ The output of fstab will look like this:
     # /boot was on /dev/sda2 during installation
     /dev/sda2  /boot  ext2    defaults       0       2
 
-
+We are paying attention to the first 2 colums in that file (example: /dev/sda / ). ###STOPPED HERE 
 
 ## Limitations
 
