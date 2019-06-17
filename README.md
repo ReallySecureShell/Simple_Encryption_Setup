@@ -87,6 +87,7 @@ Choose: -p choose (boot into the shell when finished)
 ## Limitations
 
 ```
+   These are notes, not actual instructions.
    Not compatiable with LVM.
    only supports the ext4 filesystem
    system needs to have a "basic" partition scheme (can have a swap,efi but no separate /home,/tmp,/var,etc...)
