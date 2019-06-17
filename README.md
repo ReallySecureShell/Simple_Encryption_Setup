@@ -63,9 +63,17 @@ Optionally write a name for your image or leave it as the default.
 Choose: The drive you want to backup
 <img src="./Assets/Clonezilla_backup_step_9.png" width="85%" />
 
-Choose: -sfsck
+Choose: -sfsck<br>
 <img src="./Assets/Clonezilla_backup_step_10.png" width="85%" />
 
+Choose: Yes, check the saved image
+<img src="./Assets/Clonezilla_backup_step_11.png" width="85%" />
+
+Choose: -senc Not to encrypt the image
+<img src="./Assets/Clonezilla_backup_step_12.png" width="85%" />
+
+Choose: -senc Not to encrypt the image
+<img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
 
 ### Partition Layout
 
