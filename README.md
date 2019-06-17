@@ -51,6 +51,7 @@ Choose: The device thats not the drive you're encrypting
 Choose: The directory where you want to store the image
 <img src="./Assets/Clonezilla_backup_step_5.png" width="85%" />
 
+
 ### Partition Layout
 
 ### Tested Distributions
