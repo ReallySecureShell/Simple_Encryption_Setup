@@ -34,7 +34,7 @@ Download the Clonezilla ISO
       
 <a href="https://mirrors.xtom.com/osdn//clonezilla/71030/clonezilla-live-2.6.1-25-amd64.iso">clonezilla-live-2.6.1-25</a>
 
-If you need an image writer you can <a href="http://wiki.rosalab.ru/ru/images/2/24/RosaImageWriter-2.6.1-lin-x86_64.txz">Download</a> RosaImageWriter.
+If you need an image writer you can <a href="http://wiki.rosalab.ru/ru/images/2/24/RosaImageWriter-2.6.1-lin-x86_64.txz">download</a> RosaImageWriter.
 
 We are using Clonezilla because thats the system where all testing was done. That way we make sure the script acts as expected.
 If you have a version of Clonezilla already, <b>make sure</b> it's at least version `2.6.1-25`. Because (at least) version 2.5.6-22 throws a `bus error` when attempting to chroot.
