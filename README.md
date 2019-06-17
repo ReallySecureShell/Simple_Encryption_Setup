@@ -30,13 +30,24 @@ If you need an image writer you can <a href="http://wiki.rosalab.ru/ru/images/2/
 We are using Clonezilla because thats the system where all testing was done. That way we make sure the script acts as expected.
 If you have a version of Clonezilla already, <b>make sure</b> it's at least version `2.6.1-25`. Because (at least) version 2.5.6-22 throws a `bus error` when attempting to chroot.
 
-### Backup System
+### Backup Your System
 
-Now boot into the Clonezilla USB you've just made. 
+Now boot into the Clonezilla USB you've just made. You will also need another drive (that isn't the one you're encrypting) to store the device image. 
 
 You'll be prompted to enter your language and keyboard layout. Before arriving at this screen:
 
-<img src="./Assets/Clonezilla_backup_step_1.png" width="40%" />
+Choose: Start_Clonezilla
+<img src="./Assets/Clonezilla_backup_step_1.png" width="85%" />
+
+Choose: device-image
+<img src="./Assets/Clonezilla_backup_step_2.png" width="85%" />
+
+Choose: local_dev
+<img src="./Assets/Clonezilla_backup_step_3.png" width="85%" />
+
+Choose: The device thats not the drive you're encrypting
+<img src="./Assets/Clonezilla_backup_step_4.png" width="85%" />
+
 
 
 ### Partition Layout
