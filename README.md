@@ -20,9 +20,7 @@ This utility aims to help users quickly setup full-disk encryption, with the int
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
 A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
 
-<b color=red>Before proceeding please visit the <a href="#limitations">Limitations</a>
-
-Before proceeding please visit the Limitations section to determine if your system is compatible before continuing. section to determine if your system is compatible before continuing.</b>
+<b color=red>Before proceeding please visit the <a href="#limitations">Limitations</a> section to determine if your system is compatible before continuing.</b>
 
 ### Required Packages
 There are two required packages: initramfs-tools, and cryptsetup. Both are available in the default Ubuntu repositories. And it is assumed that most Ubuntu derivatives will also carry these packages.
