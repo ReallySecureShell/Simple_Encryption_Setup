@@ -1,4 +1,4 @@
-                                                                                              
+
 <div align="center">
 
 <img src="./Assets/logo.gif" width="40%" />
@@ -11,6 +11,8 @@ This utility aims to help users quickly setup full-disk encryption, with the int
 * <a href="#pre-setup">1.0: Pre-Setup</a>
   * <a href="#required-packages">1.1: Required Packages</a>
   * <a href="#get-a-live-cd">1.2: Get a Live-CD</a>
+  * <a href="#backup-your-system">1.3: Backup Your System</a>
+  * <a href="#partition-layout">1.4: Partition Layout</a>
   
 ## Pre-Setup
 
@@ -88,7 +90,7 @@ We will now need to check that the system is able to be
 
 
 
-### Tested Distributions
+## Tested Distributions
 put these in tables
 Ubuntu 18.04 EFI and DOS 
 Zorin OS 15 EFI and DOS
