@@ -82,41 +82,16 @@ Choose: -senc Not to encrypt the image
 
 Choose: -p choose (boot into the shell when finished)
 <img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
+
 ```
-### Partition Layout - might delete, make part of limitations
-
-Before we can start encrypting we need to know the mountpoints of your current partitions.
-
-To get all the partitions on the device run:
-
-    lsblk
-
-Ignore `loop0` (it's the mountpoint of the Clonezilla drive).
-
-First we need to `determine which partition stores your / directory`. To do this you can either:
-
-* Keep mounting partitions ONE AT A TIME into /mnt: `sudo mount /PARTITION /mnt` (Replace PARTITION with the partitions from the lsblk command). Once you've mounted a partition, check its contents with `ls /mnt`. You can unmount the partition with `sudo umount /mnt` <b>IF</b> it does not contain your `/` directory.
-
-* Mount the `/` partition if you know it.
-
-* Reboot into your system and run: `cat /etc/fstab` then take a picture of the output with your phone. Then boot back into the Clonezilla shell (option to boot into shell is the screen just after picking the keyboard).
-
-Once your `/` directory is mounted, `cat /mnt/etc/fstab`.
-
-The output of fstab will look like this:
-
-    # <file system> <mount point>   <type>  <options>       <dump>  <pass>
-    /dev/sda1  /  ext4    errors=remount-ro  0       1
-    # /boot was on /dev/sda2 during installation
-    /dev/sda2  /boot  ext2    defaults       0       2
-
-We are paying attention to the first 2 colums in that file (example: /dev/sda / ). ###STOPPED HERE 
-
 ## Limitations
 
-Not compatiable with lvm - notes
-Check to see if other non-ubuntu distros work
-
+```
+   Not compatiable with LVM.
+   only supports the ext4 filesystem
+   system needs to have a "basic" partition scheme (can have a swap,efi but no separate /home,/tmp,/var,etc...)
+   explicitly define all partition setups, including setup for EFI systems.
+```
 ## Security Concerns
 
 ## Download
