@@ -8,13 +8,12 @@
 
 This utility aims to help users quickly setup full-disk encryption, with the intent of providing a basic encryption setup for the user.
 
-*  <a href="#pre-setup">1.0: Pre-Setup</a>
-  *  <a href="#required-packages">1.1: Required Packages</a>
-  *  <a href="#get-a-live-cd">1.2: Get a Live-CD</a>
-  *  <a href="#backup-your-system">1.3: Backup Your System</a>
-  *  <a href="#partition-layout">1.4: Partition Layout</a>
+* <a href="#pre-setup">1.0: Pre-Setup</a>
+  * <a href="#required-packages">Required Packages</a>
+  * <a href="#get-a-live-cd">Get a Live-CD</a>
+  * <a href="#backup-your-system">Backup Your System</a>
+  * <a href="#partition-layout">Partition Layout</a>
   
-
 ## Pre-Setup
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
