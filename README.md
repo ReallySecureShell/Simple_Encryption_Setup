@@ -72,7 +72,7 @@ Choose: Yes, check the saved image
 Choose: -senc Not to encrypt the image
 <img src="./Assets/Clonezilla_backup_step_12.png" width="85%" />
 
-Choose: -senc Not to encrypt the image
+Choose: -p choose
 <img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
 
 ### Partition Layout
