@@ -120,16 +120,6 @@ Check to see if other non-ubuntu distros work
 
 ## Security Concerns
 
-## Tested Distributions
-put these in tables
-Ubuntu 18.04 EFI and DOS 
-Zorin OS 15 EFI and DOS
-
-| DIST. | EFI | DOS |
-| :---: | :---: | :---: |
-|  Ubuntu 18.04 | YES | YES |
-| Zorin OS 15 | YES | YES |
-
 ## Download
 
     curl --location 'https://tinyurl.com/yxekdxwq' > encrypt.sh && chmod 744 encrypt.sh
