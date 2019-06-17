@@ -8,16 +8,17 @@
 
 This utility aims to help users quickly setup full-disk encryption, with the intent of providing a basic encryption setup for the user.
 
-* <a href="#pre-setup">1.0: Pre-Setup</a>
-  * <a href="#required-packages">1.1: Required Packages</a>
-  * <a href="#get-a-live-cd">1.2: Get a Live-CD</a>
-  * <a href="#backup-your-system">1.3: Backup Your System</a>
-  * <a href="#partition-layout">1.4: Partition Layout</a>
+*  <a href="#pre-setup">1.0: Pre-Setup</a>
+  *  <a href="#required-packages">1.1: Required Packages</a>
+  *  <a href="#get-a-live-cd">1.2: Get a Live-CD</a>
+  *  <a href="#backup-your-system">1.3: Backup Your System</a>
+  *  <a href="#partition-layout">1.4: Partition Layout</a>
   
+
 ## Pre-Setup
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
-A good choice is to burn a clonezilla iso to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
+A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
 
 <b color=red>Before proceeding please visit the Limitations section to determine if your system is compatible before continuing.</b>
 
@@ -88,13 +89,6 @@ Choose: -p choose
 We will now need to check that the system is able to be 
 
 
-
-
-## Tested Distributions
-put these in tables
-Ubuntu 18.04 EFI and DOS 
-Zorin OS 15 EFI and DOS
-
 ## Limitations
 
 Not compatiable with lvm - notes
@@ -103,6 +97,11 @@ Check to see if other non-ubuntu distros work
 ## Security Concerns
 
 
+
+## Tested Distributions
+put these in tables
+Ubuntu 18.04 EFI and DOS 
+Zorin OS 15 EFI and DOS
 
 ## Download
 
