@@ -113,11 +113,7 @@ The output of fstab will look like this:
 
 For this next part reference your fstab to the following diagram:
 
- _________
-|         |
-|         |
-|         |
-|_________|
+
 
 
 
