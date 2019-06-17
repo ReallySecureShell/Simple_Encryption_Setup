@@ -104,7 +104,7 @@ First we need to `determine which partition stores your / directory`. To do this
 
 Once your `/` directory is mounted, `cat /mnt/etc/fstab` (unless you've already done the last option).
 
-You will get output looking like this:
+The output of fstab will look like this:
 
     # <file system> <mount point>   <type>  <options>       <dump>  <pass>
     /dev/sda1  /  ext4    errors=remount-ro  0       1
@@ -112,6 +112,14 @@ You will get output looking like this:
     /dev/sda2  /boot  ext2    defaults       0       2
 
 For this next part reference your fstab to the following diagram:
+
+ _________
+|         |
+|         |
+|         |
+|_________|
+
+
 
 ## Limitations
 
