@@ -91,11 +91,11 @@ To get all the partitions on the device run:
 
     lsblk
 
-Ignore `loop0`, it's the Clonezilla drive.
+Ignore `loop0` (it's the mountpoint of the Clonezilla drive).
 
 First we need to `determine which partition stores your / directory`. To do this you can either:
 
-* Keep mounting partitions ONE AT A TIME into /mnt: sudo mount /PARTITION /mnt (Replace PARTITION with the partitions from the lsblk command). Once you've mounted and checked a partition you can unmount it with: `sudo umount /mnt`
+* Keep mounting partitions ONE AT A TIME into /mnt: `sudo mount /PARTITION /mnt`determine (Replace PARTITION with the partitions from the lsblk command). Once you've mounted and checked a partition you can unmount it with: `sudo umount /mnt` BUT DONT UNMOUNT THE PARTITION CONTAINING YOUR `/` DIRECTORY ONCE YOU'VE FOUND IT!
 
 * Mount the / partition if you know it.
 
