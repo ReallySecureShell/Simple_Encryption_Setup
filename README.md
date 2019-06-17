@@ -13,6 +13,8 @@ This utility aims to help users quickly setup full-disk encryption, with the int
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
 A good choice is to burn a clonezilla iso to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
 
+<b color=red>Before proceeding please visit the Limitations section to determine if your system is compatible before continuing.</b>
+
 ### Required Packages
 There are two required packages: initramfs-tools, and cryptsetup. Both are available in the default Ubuntu repositories. And it is assumed that most Ubuntu derivatives will also carry these packages.
 
@@ -32,7 +34,7 @@ If you have a version of Clonezilla already, <b>make sure</b> it's at least vers
 
 ### Backup Your System
 
-Now boot into the Clonezilla USB you've just made. You will also need another drive (that isn't the one you're encrypting) to store the device image. 
+Now boot into the Clonezilla USB you've just made. You will also need another drive (that isn't the one you're encrypting) to store the device image.
 
 You'll be prompted to enter your language and keyboard layout. Before arriving at this screen:
 
@@ -76,6 +78,11 @@ Choose: -p choose
 <img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
 
 ### Partition Layout
+
+We will now need to check that the system is able to be 
+
+
+
 
 ### Tested Distributions
 put these in tables
