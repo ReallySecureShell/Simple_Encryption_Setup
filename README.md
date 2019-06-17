@@ -12,7 +12,6 @@ This script is designed to encrypt a users root and swap partitions without loos
   * <a href="#required-packages">Required Packages</a>
   * <a href="#get-a-live-cd">Get a Live-CD</a>
   * <a href="#backup-your-system">Backup Your System</a>
-  * <a href="#partition-layout">Partition Layout</a>
 * <a href="#limitations">2.0: Limitations</a>
   
 ## Pre-Setup
