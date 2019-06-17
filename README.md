@@ -8,6 +8,10 @@
 
 This utility aims to help users quickly setup full-disk encryption, with the intent of providing a basic encryption setup for the user.
 
+| INDEX |
+| :--- |
+|1.0: <a href="./Pre-Setup">Pre-Setup</a> |
+
 ## Pre-Setup
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
