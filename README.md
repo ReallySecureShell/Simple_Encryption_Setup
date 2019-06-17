@@ -95,11 +95,39 @@ Choose: -p choose (boot into the shell when finished)
 
 ### Compatible Partition Schemes
 
+The diagram that follows details known working partition schemes. If your partitions do not match any of the following, there is NO GUARANTEE that the script will operate properly.
+
+Note: The partition "ROOT" is implicit to all <b>files/directories</b> (except for the swapfile) in the filesystem. For example, if you could have a separate `/home` partition, it would be explicitly specified.
+
+```
+1: ________________________       2: ________________________ 
+  |          EFI           |        |          EFI           |
+  |------------------------|        |------------------------|
+  |          ROOT          |        |          ROOT          |
+  |________________________|        |        SWAPFILE        |
+  |          SWAP          |        |________________________|
+  |________________________|        |                        |
+  |    EFI in /boot/efi    |        |    EFI in /boot/efi    |
+  |________________________|        |________________________|
+  
+
+3: ________________________       4: ________________________ 
+  |          DOS           |        |          DOS           |
+  |------------------------|        |------------------------|
+  |                        |        |                        |
+  |          ROOT          |        |          ROOT          |
+  |                        |        |        SWAPFILE        |
+  |________________________|        |                        |
+  |          SWAP          |        |                        |
+  |________________________|        |________________________|
+
+``` 
+
 ## Download
 
     curl --location 'https://tinyurl.com/yxekdxwq' > encrypt.sh && chmod 744 encrypt.sh
 
-## Running The Script
+## In-Depth Operation
 
 Example output for an operation
 Explanation of questions the script asks the user.
@@ -114,7 +142,7 @@ Explanation of questions the script asks the user.
 
 #### Specific for i386
 
-## Post Execution
+## Recovery
 reboot system 
 recovery options
  - restore from backup (easiest)
