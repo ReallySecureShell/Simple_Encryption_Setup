@@ -22,7 +22,10 @@ This script is designed to encrypt a users root and swap partitions without loos
   * <a href="#add-root-entry-to-mntetccrypttab">Add Root Entry to /mnt/etc/crypttab</a>
   * <a href="#avoid-entering-your-luks-passphrase-twice">Avoid Entering Your LUKS Passphrase Twice</a>
   * <a href="#configuring-grub">Configuring GRUB</a>
-    * 
+    * <a href="#grub-install-efi">GRUB Install: EFI</a>
+    * <a href="#grub-install-i386">GRUB Install: i386</a>
+  * <a href="#setting-up-encrypted-swap">Setting Up Encrypted Swap</a>
+  * <a href="#update-grub-and-initramfs">Update GRUB and Initramfs</a>
 
 ## Download
 
