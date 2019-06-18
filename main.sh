@@ -23,39 +23,6 @@
 #SOFTWARE.
 ###################################################################################
 
-#This is an offline full-disk encryption tool for the purpose of adding FDE to a drive without loosing data on said drive.
-
-#This program will work with the following setup
-#Drive SDA will be used as an example.
-#
-#
-# _____________DOS_Partition_table____________    ______________EFI_Partition_table_____________
-#|                                            |  |                                              |
-#|   _______sda1_______________sda2________   |  |      _____sda1_____________sda2________      |
-#|  |                 |                    |  |  |     |              |                   |     |
-#|  |      ROOTFS     |                    |  |  |     |              |       ROOT        |     |
-#|  |       HOME      |      SWAP_PART     |  |  |     |   EFI_PART   |     SWAPFILE      |     |
-#|  |       BOOT      |                    |  |  |     |              |                   |     |
-#|  |_________________|____________________|  |  |     |______________|___________________|     |
-#|                                            |  |                                              |
-#|____________________________________________|  |______________________________________________|
-#                                                                                                
-#                                                                                                
-#                                           ---OR---                                             
-#                                                                                                
-# _____________DOS_Partition_table____________    ______________EFI_Partition_table_____________
-#|                                            |  |                                              |
-#|             ______sda1_______              |  |    ____sda1_________sda2_________sda3____    |
-#|            |                 |             |  |   |            |             |           |   |
-#|            |     ROOTFS      |             |  |   |            |             |           |   |
-#|            |      HOME       |             |  |   |  EFI_PART  |  SWAP_PART  |   ROOT    |   |
-#|            |      BOOT       |             |  |   |            |             |           |   |
-#|            |    SWAPFILE     |             |  |   |            |             |           |   |
-#|            |_________________|             |  |   |____________|_____________|___________|   |
-#|                                            |  |                                              |
-#|____________________________________________|  |______________________________________________|
-#
-
 #Is the terminal capable of color?
 case $TERM in
 	xterm-color|*-256color)
@@ -160,18 +127,25 @@ function FUNCT_detect_partition_table_type(){
 	#Temporarily mount the root filesystem to search for EFI.
 	printf '[%bINFO%b] Temporarily mounting %s to determine partition table type\n' $YELLOW $NC $_initial_rootfs_mount >&2
 
-	#Check if a filesystem is already mounted on /mnt
-	if [[ `mountpoint /mnt` == '/mnt is not a mountpoint' ]]
+	#Mount root partition into /mnt 
+	if [[ `lsblk --output MOUNTPOINT $_initial_rootfs_mount | grep -P '^\/mnt$'` != '/mnt' ]]
 	then
 		sudo mount $_initial_rootfs_mount /mnt
-		if [[ `mountpoint /mnt` == '/mnt is a mountpoint' ]]
-		then
-			printf '[%bOK%b]   Successfully mounted %s to /mnt\n' $GREEN $NC $_initial_rootfs_mount >&2
-		else
-			#Dont assume everything is fine if the drive we specifically asked for will not mount.
-			printf '[%bFAIL%b] Unable to mount %s to /mnt\n' $RED $NC $_initial_rootfs_mount >&2 
+		case $? in
+		'0')
+			#Now check if /mnt/etc/fstab exists
+			if [ ! -e /mnt/etc/fstab ]
+			then
+				printf '[%bFAIL%b] Mounted successfully, but the partition does not contain an fstab file\n' $RED $NC >&2
+				sudo umount /mnt
+				exit 1
+			fi
+		;;
+		*)	
+			printf '[%bFAIL%b] Failed to mount partition\n' $RED $NC >&2
 			exit 1
-		fi
+		;;
+		esac
 	fi
 
 	#Has grub been installed with EFI support?
@@ -583,7 +557,7 @@ function FUNCT_create_encrypted_swap(){
 	if [ ! -e /mnt/etc/initramfs-tools/conf.d/resume ]
 	then
 		printf '[%bINFO%b] Creating resume file at /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
-		sudo chroot /mnt touch /mnt/etc/initramfs-tools/conf.d/resume
+		sudo chroot /mnt touch /etc/initramfs-tools/conf.d/resume
 	fi
 
 	#Edit the RESUME file found at /etc/initramfs-tools/conf.d/resume
@@ -605,6 +579,7 @@ function FUNCT_update_changes_to_system(){
 	sudo chroot /mnt update-grub	
 
 	printf '[%bINFO%b] Updating all initramfs configurations.\n' $YELLOW $NC >&2
+
 	#Update all initramfs filesystems
 	sudo chroot /mnt update-initramfs -c -k all
 	printf '[%bINFO%b] It is alright that the initramfs updater was not able to find the unlock.key file.\n       This is because the unlock.sh script contains the location of the keyfile relative\n       to the initramfs image and not the primary root filesystem.\n' $YELLOW $NC >&2
