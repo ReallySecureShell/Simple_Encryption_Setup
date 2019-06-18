@@ -43,7 +43,7 @@ There are two required packages: initramfs-tools, and cryptsetup. Both are avail
 If you need an image writer you can <a href="http://wiki.rosalab.ru/ru/images/2/24/RosaImageWriter-2.6.1-lin-x86_64.txz">download</a> RosaImageWriter.
 
 We are using Clonezilla because it's the OS where all testing is being done. That way we make sure the script acts as expected.
-If you have a version of Clonezilla already, <b>make sure it's at least version `2.6.1-25`</b>. Because there is bug on (at least) version 2.5.6-22 that when attempting to chroot, all attempts will fail with a `bus error`.
+If you have a version of Clonezilla already, <b>make sure it's at least version `2.6.1-25`</b>. Because there is a bug on (at least) version 2.5.6-22 that when attempting to chroot, all attempts will fail with a `bus error`.
 
 ### Backup Your System
 
