@@ -382,7 +382,7 @@ sudo chroot /mnt chmod 400 /etc/initramfs-tools/scripts/unlock.key
 ### Configuring GRUB
 
 Append `GRUB_ENABLE_CRYPTODISK=y` into /mnt/etc/default/grub. And configure GRUB to pre-load the `luks, and cryptodisk modules`.
-There is extra code here to keep your grub config file looking nice. We do this by appending the first option (GRUB_ENABLE_CRYPTODISK) below the default `GRUB_CMDLINE_LINUX=""` option. Then the set the second option (GRUB_PRELOAD_MODULES) below the previous option.
+There is extra code here to keep your grub config file looking nice. We do this by appending the first option (GRUB_ENABLE_CRYPTODISK) below the default `GRUB_CMDLINE_LINUX=""` option. Then we set the second option (GRUB_PRELOAD_MODULES) below the previous option (GRUB_ENABLE_CRYPTODISK).
 
 ```bash
 #Enable cryptodisks
