@@ -536,3 +536,10 @@ sudo chroot /mnt update-grub
 #Update all initramfs filesystems
 sudo chroot /mnt update-initramfs -c -k all
 ```
+
+## Recovery
+
+If the script renders your computer unbootable, you can either `restore from a backup`. If you neglected to create a backup, you can follow the steps down below.
+
+### Decrypt Drive
+
