@@ -414,7 +414,9 @@ Mount the EFI partition by its UUID.
 sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
 ```
 
-Set `--efi-directory=/boot/efi` to install GRUB into the mounted EFI partition. Install the necessary modules: `--modules="part_gpt part_msdos"`. Then set `--boot-directory=/boot/efi/EFI/ubuntu` to set where our configurations come from. Now generate and output the updated configuration into `/boot/efi/EFI/ubuntu/grub/grub.cfg`. Lastly, the `_target_platform` variable is equal to `x86_64-efi` which specifies to install EFI on an x86_64 CPU (There also exists an `i386-efi` option for systems with EFI support, but run 32-bit processors).
+The `--efi-directory=/boot/efi` option installs GRUB to the mounted EFI partition. The necessary are installed with the `--modules="part_gpt part_msdos"` option. Use the `--boot-directory=/boot/efi/EFI/ubuntu` option to set where our GRUB images are installed under. Lastly, the `_target_platform` variable specifies to install EFI on an x86_64 CPU (There also exists an `i386-efi` option for systems with EFI support, but run 32-bit processors).
+
+Now, use `grub-mkconfig` to generate our new GRUB images.
 
 ```bash
 sudo chroot /mnt grub-install --target=$_target_platform --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --modules="part_gpt part_msdos" --recheck
