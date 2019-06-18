@@ -17,6 +17,10 @@ This script is designed to encrypt a users root and swap partitions without loos
 
 ## Download
 
+    curl --location 'https://raw.githubusercontent.com/ReallySecureShell/Full_Disk_Encryption/master/main.sh' > encrypt.sh && chmod 744 encrypt.sh
+
+Or use the shortend URL: 
+
     curl --location 'https://tinyurl.com/yxekdxwq' > encrypt.sh && chmod 744 encrypt.sh
 
 ## Pre-Setup
@@ -270,7 +274,7 @@ do
 done
 ```
 
-### Add Root Entry to Crypttab
+### Add Root Entry to /etc/crypttab
 
 Get the UUID of the root filesystem. The variable `_sed_compatible_rootfs_mount_name` takes the value of `_initial_rootfs_mount` and adds a back-slash (`\`) *before* all forward-slash (`/`) characters. For instance, if the value of `_initial_rootfs_mount` is `/dev/sda1`, once it is parsed in the sed statement it becomes `\/dev\/sda1`. This is so the second sed statement is able to correctly parse the partition name.
 
@@ -402,8 +406,8 @@ GRUB_TIMEOUT=0
 GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
 GRUB_CMDLINE_LINUX_DEFAULT="splash quiet"
 GRUB_CMDLINE_LINUX=""
-GRUB_ENABLE_CRYPTODISK=y
-GRUB_PRELOAD_MODULES="luks cryptodisk"
+GRUB_ENABLE_CRYPTODISK=y               <---
+GRUB_PRELOAD_MODULES="luks cryptodisk" <---
 ...
 ```
 #### GRUB Install: EFI
@@ -439,6 +443,9 @@ Now install GRUB for the i386 platform.
 #Install grub with i386 architecture support ONLY.
 sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_install_device
 ```
+
+### Setting Up Encrypted Swap
+
 
 
 ## Recovery
