@@ -328,7 +328,7 @@ sudo chown root:root /mnt/etc/crypttab
 unset discard
 ```
 
-### Create Keyfile/Script to Unlock Initramfs
+### Avoid Entering Your LUKS Passphrase Twice
 
 The purpose of creating a key and script file is so we don't have to enter our decryption passphrase twice when booting. Normally you will be asked twice for the passphrase, once by GRUB, and once by initramfs. The following code embeds a script that will echo a keyfile to STDIN (just as if you were the one entering the passphrase). A keyfile will also be generated and added as our second LUKS passphrase, it too is embedded in initramfs.
 
