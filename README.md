@@ -17,7 +17,7 @@ This script is designed to encrypt a users root and swap partitions without loos
 
 ## Download
 
-    curl --location 'https://raw.githubusercontent.com/ReallySecureShell/Full_Disk_Encryption/master/main.sh' > encrypt.sh && chmod 744 encrypt.sh
+    curl 'https://raw.githubusercontent.com/ReallySecureShell/Full_Disk_Encryption/master/main.sh' > encrypt.sh && chmod 744 encrypt.sh
 
 Or use the shortend URL: 
 
