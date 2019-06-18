@@ -446,8 +446,11 @@ sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_i
 
 ### Setting Up Encrypted Swap
 
+This section will be about how the script sets up an encrypted swap partition. Before any setup for the swap partition begins, the script will run `sudo chroot /mnt blkid -t TYPE="swap"` to determine if any swap partitions even exist. If no swap partitions are found the script will immediately hit a `return 0` statement causing the function to exit.
 
-
+```
+###########STOPPED HERE
+```
 ## Recovery
 reboot system 
 recovery options
