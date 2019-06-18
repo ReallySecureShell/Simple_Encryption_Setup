@@ -390,7 +390,7 @@ sudo sed -Ei 's/GRUB_CMDLINE_LINUX="(.*?)\"/&\nGRUB_ENABLE_CRYPTODISK=y/' /mnt/e
 sudo sed -Ei 's/GRUB_ENABLE_CRYPTODISK=y/&\nGRUB_PRELOAD_MODULES="luks cryptodisk"/' /mnt/etc/default/grub
 ```
 
-The TOP of your /mnt/etc/default/grub file should now look something like this:
+The top of your /mnt/etc/default/grub file should now look something like this:
 
 ```
 ...
@@ -404,6 +404,8 @@ GRUB_ENABLE_CRYPTODISK=y
 GRUB_PRELOAD_MODULES="luks cryptodisk"
 ...
 ```
+
+
 
 #### Specific for EFI
 
