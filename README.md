@@ -148,7 +148,7 @@ if [ -d '/mnt/boot/grub/x86_64-efi' ]
 then
 ...
 ```
-If so try to get the UUID of the EFI partition from the filesystem's /etc/fstab:
+If so, try to get the UUID of the EFI partition from /mnt/etc/fstab:
 
 ```bash
 _uuid_of_efi_part=`sed -n '/\/boot\/efi/{
@@ -330,6 +330,8 @@ unset discard
 
 ### Create Keyfile/Script to Unlock Initramfs
 
+The purpose of creating a key and script file is so we don't have to enter our decryption passphrase twice when booting. Normally you will be asked twice for the passphrase, once by GRUB, and once by initramfs. The following code embeds a script that will echo a keyfile to STDIN (just as if you were the one entering the passphrase). A keyfile will also be generated and added as our second LUKS passphrase, it too is embedded in initramfs.
+
 Generate a 2kB file from random data. This will be used as the key to unlock initramfs.
 
 ```bash
@@ -348,7 +350,7 @@ Move the key into `/mnt/etc/initramfs-tools/scripts/`. Files in this directory a
 sudo mv unlock.key /mnt/etc/initramfs-tools/scripts/
 ```
 
-Create the unlock.sh file, change its ownership to the current $USER, and write the shell-script to the file.
+Create the unlock.sh file and change the ownership to the current $USER. Then write a short shell script that will echo the key when initramfs asks for any existing LUKS passphrase.
 
 ```bash
 sudo touch /mnt/etc/initramfs-tools/hooks/unlock.sh
