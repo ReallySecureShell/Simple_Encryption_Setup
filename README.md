@@ -20,6 +20,9 @@ This script is designed to encrypt a users root and swap partitions without loos
   * <a href="#encrypting-the-drive">Encrypting the Drive</a>
   * <a href="#setup-chroot-jail">Setup Chroot Jail</a>
   * <a href="#add-root-entry-to-mntetccrypttab">Add Root Entry to /mnt/etc/crypttab</a>
+  * <a href="#avoid-entering-your-luks-passphrase-twice">Avoid Entering Your LUKS Passphrase Twice</a>
+  * <a href="#configuring-grub">Configuring GRUB</a>
+    * 
 
 ## Download
 
