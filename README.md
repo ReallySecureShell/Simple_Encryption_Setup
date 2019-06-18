@@ -26,6 +26,8 @@ This script is designed to encrypt a users root and swap partitions without loos
     * <a href="#grub-install-i386">GRUB Install: i386</a>
   * <a href="#setting-up-encrypted-swap">Setting Up Encrypted Swap</a>
   * <a href="#update-grub-and-initramfs">Update GRUB and Initramfs</a>
+* <a href="#recovery">Recovery</a>
+  * <a href="#decrypt-drive">Decrypt Drive</a>
 
 ## Download
 
@@ -539,7 +541,7 @@ sudo chroot /mnt update-initramfs -c -k all
 
 ## Recovery
 
-If the script renders your computer unbootable, you can either `restore from a backup`. If you neglected to create a backup, you can follow the steps down below.
+If the script renders your computer unbootable you can either `restore from a backup`. However, if you neglected to create a backup, you can follow the steps down below.
 
 ### Decrypt Drive
 
