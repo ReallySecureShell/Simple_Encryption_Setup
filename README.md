@@ -404,12 +404,38 @@ GRUB_ENABLE_CRYPTODISK=y
 GRUB_PRELOAD_MODULES="luks cryptodisk"
 ...
 ```
+#### GRUB Install: EFI
 
+Mount the EFI partition by its UUID. 
 
+```bash
+sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
+```
 
-#### Specific for EFI
+Install GRUB into the /boot/efi directory, install the necessary modules (part_gpt, part_msdos) then set `--boot-directory=/boot/efi/EFI/ubuntu`. Now generate and output the updated configuration into `/boot/efi/EFI/ubuntu/grub/grub.cfg`. Which will be seen by our GRUB as the default config now that our boot directory is `/boot/efi/EFI/ubuntu`. Lastly, the `_target_platform` variable is equal to `x86_64-efi` which specifies to install EFI on an x86_64 CPU (although other variants of this exist).
 
-#### Specific for i386
+```bash
+sudo chroot /mnt grub-install --target=$_target_platform --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --modules="part_gpt part_msdos" --recheck
+
+sudo chroot /mnt grub-mkconfig -o /boot/efi/EFI/ubuntu/grub/grub.cfg
+```
+
+#### GRUB Install: i386
+
+Since GRUB installs to the MBR itself, we do not specify a partition but rather the entire drive (ex: /dev/sda). So using a pure BASH statement, remove the trailing partition number from whatever is stored in `_initial_rootfs_mount`. We are then left with just the drive path (again: /dev/sda). 
+
+```bash
+#Remove partition numbers from the end of the root device.
+local _grub_install_device=${_initial_rootfs_mount%%[0-9]}
+```
+
+Now install GRUB for the i386 platform.
+
+```bash
+#Install grub with i386 architecture support ONLY.
+sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_install_device
+```
+
 
 ## Recovery
 reboot system 
