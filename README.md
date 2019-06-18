@@ -196,7 +196,7 @@ fi
 ```
 
 After that we determine if the partition table is EFI or DOS. If `_uuid_of_efi_part` is empty then DOS will be used, if not, EFI.
-We also set another variable: `_target_platform` which is later used to determine if GRUB will be installed for EFI or DOS (see section: ENTER FUTURE SECTION CONTAINING THE SETUP FOR GRUB).
+We also set another variable: `_target_platform` which is later used to determine if GRUB will be installed for EFI or DOS (see section: <a href="#configuring-grub">Configuring GRUB</a>).
 
 ```bash
 if [ -z $_uuid_of_efi_part ]
