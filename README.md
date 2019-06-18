@@ -14,6 +14,12 @@ This script is designed to encrypt a users root and swap partitions without loos
   * <a href="#get-a-live-cd">Get a Live-CD</a>
   * <a href="#backup-your-system">Backup Your System</a>
 * <a href="#limitations">3.0: Limitations</a>
+  * <a href="#compatible-partition-schemes">Compatible Partition Schemes</a>
+* <a href="#in-depth-operation">4.0: In-Depth Operation</a>
+  * <a href="#auto-detect-partition-table-type">Auto Detect Partition Table Type</a>
+  * <a href="#encrypting-the-drive">Encrypting the Drive</a>
+  * <a href="#setup-chroot-jail">Setup Chroot Jail</a>
+  * <a href="#add-root-entry-to-\/mnt\/etc\/crypttab">Add Root Entry to /mnt/etc/crypttab</a>
 
 ## Download
 
@@ -105,7 +111,7 @@ Choose: -p choose (boot into the shell when finished)
 
 ### Compatible Partition Schemes
 
-The diagram that follows details known working partition schemes. If your partitions do not match any of the following, there is NO GUARANTEE that the script will operate properly.
+The diagram that follows details known working partition schemes. If your partitions do not match any of the following there is NO GUARANTEE that the script will operate properly.
 
 Note: The partition "ROOT" is <b>implicit</b> to all files/directories (except for the swapfile). For example, if you could have a separate `/home` partition, it would be explicitly specified.
 
@@ -192,7 +198,6 @@ done
 #Did one or more critical EFI files go undiscovered?
 if [[ $counter -gt '0' ]]
 then
-  printf '[%bWARN%b] %s: partition is deemed invalid do to above errors\n         Will use DOS instead\n' $RED $NC   $_uuid_of_efi_part >&2
   unset _uuid_of_efi_part
 else
   printf '[%bOK%b]   %s: is a valid EFI partition\n' $GREEN $NC $_uuid_of_efi_part >&2
@@ -205,10 +210,8 @@ We also set another variable: `_target_platform` which is later used to determin
 ```bash
 if [ -z $_uuid_of_efi_part ]
 then
-  printf '[%bINFO%b] Will install for the i386 platform\n' $YELLOW $NC >&2
   _target_platform='i386-pc'
 else
-  printf '[%bINFO%b] Will install for the x86_64-efi platform\n' $YELLOW $NC >&2
   _target_platform='x86_64-efi'
 fi
 ```
@@ -274,7 +277,7 @@ do
 done
 ```
 
-### Add Root Entry to /etc/crypttab
+### Add Root Entry to /mnt/etc/crypttab
 
 Get the UUID of the root filesystem. The variable `_sed_compatible_rootfs_mount_name` takes the value of `_initial_rootfs_mount` and adds a back-slash (`\`) *before* all forward-slash (`/`) characters. For instance, if the value of `_initial_rootfs_mount` is `/dev/sda1`, once it is parsed in the sed statement it becomes `\/dev\/sda1`. This is so the second sed statement is able to correctly parse the partition name.
 
@@ -378,7 +381,6 @@ sudo chown root:root /mnt/etc/initramfs-tools/hooks/unlock.sh
 sudo chown root:root /mnt/etc/initramfs-tools/scripts/unlock.key 
 
 #Set restrictive permissions on the keyscript and keyfile.
-printf '[%bINFO%b] Applying restrictive permissions to the key and script files\n' $YELLOW $NC >&2
 sudo chroot /mnt chmod 100 /etc/initramfs-tools/hooks/unlock.sh
 sudo chroot /mnt chmod 400 /etc/initramfs-tools/scripts/unlock.key
 ```
@@ -448,9 +450,91 @@ sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_i
 
 This section will be about how the script sets up an encrypted swap partition. Before any setup for the swap partition begins, the script will run `sudo chroot /mnt blkid -t TYPE="swap"` to determine if any swap partitions even exist. If no swap partitions are found the script will immediately hit a `return 0` statement causing the function to exit.
 
+Get the swap partition to encrypt.
+
+```bash
+#Ask the user for the swap partition to encrypt 
+read -p 'Partition containing the SWAP filesystem: ' _initial_swapfs_mount
 ```
-###########STOPPED HERE
+
+Ask the user what name to set for the partition label.
+
+```bash
+read -p 'Swap filesystem label name [swapfs]: '
+
+case $REPLY in
+ "")
+  _swapfs_label_name='swapfs'
+ ;;
+ *)
+  _swapfs_label_name=$REPLY
+ ;;
+esac
 ```
+
+Unmount all swap partitions
+
+```bash
+sudo chroot /mnt swapoff -a
+```
+
+Create a blank 1M filesystem at the beginning of the swap partition.
+
+```bash
+sudo chroot /mnt mkfs.ext2 -L $_swapfs_label_name $_initial_swapfs_mount 1M <<< "y"
+```
+
+Append an entry for swap in /mnt/etc/crypttab
+
+```bash
+#Change ownership of /mnt/etc/crypttab
+sudo chown $USER:$USER /mnt/etc/crypttab
+
+echo "swap LABEL=$_swapfs_label_name /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /mnt/etc/crypttab
+
+#Change ownership back to root
+sudo chown root:root /mnt/etc/crypttab
+```
+
+Disable all swap entries in /mnt/etc/fstab.
+
+```bash
+sudo sed -i 's/.*swap.*/#&/' /mnt/etc/fstab
+```
+
+Change ownership of /mnt/etc/fstab, append the new swap entry, then change the ownership back to root.
+
+```bash
+sudo chown $USER:$USER /mnt/etc/fstab
+
+#Append new swapfs entry into /mnt/etc/fstab
+echo "/dev/mapper/swap none swap sw 0 0" >> /mnt/etc/fstab	
+
+#Reset ownership on /mnt/etc/fstab
+sudo chown root:root /mnt/etc/fstab	
+```
+
+Edit the `/mnt/etc/initramfs-tools/conf.d/resume` file to now point at the swap's static partition label.
+
+```bash
+#Edit the RESUME file found at /etc/initramfs-tools/conf.d/resume
+#This is so the resume function will always point to our fixed-named swap partition.
+sudo sed -i 's/.*/RESUME=LABEL='"$_swapfs_label_name"'/' /mnt/etc/initramfs-tools/conf.d/resume
+```
+
+### Update GRUB and Initramfs
+
+Lastly update the GRUB and initramfs configurations. This is so we can be sure that all previous changes are applied.
+
+```bash
+#Update grub
+sudo chroot /mnt update-grub	
+
+#Update all initramfs filesystems
+sudo chroot /mnt update-initramfs -c -k all
+```
+
+
 ## Recovery
 reboot system 
 recovery options
