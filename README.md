@@ -328,7 +328,82 @@ sudo chown root:root /mnt/etc/crypttab
 unset discard
 ```
 
+### Create Keyfile/Script to Unlock Initramfs
 
+Generate a 2kB file from random data. This will be used as the key to unlock initramfs.
+
+```bash
+dd if=/dev/urandom count=4 bs=512 of=unlock.key
+```
+
+Add key to the root device.
+
+```bash
+sudo cryptsetup luksAddKey $_initial_rootfs_mount unlock.key
+```
+
+Move the key into `/mnt/etc/initramfs-tools/scripts/`. Files in this directory are added into the initramfs image(s) when running update-initramfs.
+
+```bash
+sudo mv unlock.key /mnt/etc/initramfs-tools/scripts/
+```
+
+Create the unlock.sh file, change its ownership to the current $USER, and write the shell-script to the file.
+
+```bash
+sudo touch /mnt/etc/initramfs-tools/hooks/unlock.sh
+
+sudo chown $USER:$USER /mnt/etc/initramfs-tools/hooks/unlock.sh
+
+cat << _unlock_script_file_data > /mnt/etc/initramfs-tools/hooks/unlock.sh
+#!/bin/sh
+
+cat /scripts/unlock.key
+
+exit 0
+_unlock_script_file_data
+```
+
+Now, set the ownership for both the unlock.sh and unlock.key files to root, and apply restrictive permissions to both files.
+
+```bash
+#Set ownership for unlock.sh back to root and set unlock.key to be owned by root also.
+sudo chown root:root /mnt/etc/initramfs-tools/hooks/unlock.sh
+sudo chown root:root /mnt/etc/initramfs-tools/scripts/unlock.key 
+
+#Set restrictive permissions on the keyscript and keyfile.
+printf '[%bINFO%b] Applying restrictive permissions to the key and script files\n' $YELLOW $NC >&2
+sudo chroot /mnt chmod 100 /etc/initramfs-tools/hooks/unlock.sh
+sudo chroot /mnt chmod 400 /etc/initramfs-tools/scripts/unlock.key
+```
+
+### Configuring GRUB
+
+Append `GRUB_ENABLE_CRYPTODISK=y` into /mnt/etc/default/grub. And configure GRUB to pre-load the `luks, and cryptodisk modules`.
+There is extra code here to keep your grub config file looking nice. We do this by appending the first option (GRUB_ENABLE_CRYPTODISK) below the default `GRUB_CMDLINE_LINUX=""` option. Then the set the second option (GRUB_PRELOAD_MODULES) below the previous option.
+
+```bash
+#Enable cryptodisks
+sudo sed -Ei 's/GRUB_CMDLINE_LINUX="(.*?)\"/&\nGRUB_ENABLE_CRYPTODISK=y/' /mnt/etc/default/grub
+
+#Have grub preload the required modules for luks and cryptodisks.
+sudo sed -Ei 's/GRUB_ENABLE_CRYPTODISK=y/&\nGRUB_PRELOAD_MODULES="luks cryptodisk"/' /mnt/etc/default/grub
+```
+
+The TOP of your /mnt/etc/default/grub file should now look something like this:
+
+```
+...
+GRUB_DEFAULT=0
+GRUB_TIMEOUT_STYLE=hidden
+GRUB_TIMEOUT=0
+GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
+GRUB_CMDLINE_LINUX_DEFAULT="splash quiet"
+GRUB_CMDLINE_LINUX=""
+GRUB_ENABLE_CRYPTODISK=y
+GRUB_PRELOAD_MODULES="luks cryptodisk"
+...
+```
 
 #### Specific for EFI
 
