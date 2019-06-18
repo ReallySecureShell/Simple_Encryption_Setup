@@ -224,7 +224,7 @@ Now shrink the filesystem down to its smallest possible size.
 sudo resize2fs -M $1
 ```
 
-Encrypt the drive, note that LUKS1 is being used. 
+Encrypt the drive, note that LUKS1 is being used because GRUB does not yet support LUKS2.
 
 ```bash
 sudo cryptsetup-reencrypt --new --type=luks1 --reduce-device-size 4096S $1
