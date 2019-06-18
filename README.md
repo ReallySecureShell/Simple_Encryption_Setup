@@ -105,6 +105,8 @@ The diagram that follows details known working partition schemes. If your partit
 
 Note: The partition "ROOT" is <b>implicit</b> to all files/directories (except for the swapfile). For example, if you could have a separate `/home` partition, it would be explicitly specified.
 
+Each block specifies a whole drive. With ROOT, SWAPFILE/SWAP, and EFI representing partitions on those drives.
+
 ```
 1: ________________________       2: ________________________ 
   |          EFI           |        |          EFI           |
@@ -131,7 +133,7 @@ Note: The partition "ROOT" is <b>implicit</b> to all files/directories (except f
 
 ## In-Depth Operation
 
-The following subsections will discuss the inner workings of the script. This information is provided to help the user replicate and improve upon the existing code.
+The following subsections will discuss the inner workings of the script. This information is provided to help the user replicate and improve upon the existing code. Be aware that the following code is only detailing the core functionality of the script.
 
 ### Auto Detect Partition Table Type
 
@@ -160,15 +162,16 @@ _uuid_of_efi_part=`sed -n '/\/boot\/efi/{
 If the variable `_uuid_of_efi_part` is *not* empty then attempt to mount the EFI partition by its UUID:
 
 ```bash
-...
 #Mount the EFI partition in /mnt/boot/efi
 printf '[%bINFO%b] Mounting potential EFI partition: %s\n' $YELLOW $NC $_uuid_of_efi_part >&2
 sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
 ```
-Now make sure that the partition is a valid EFI partition with a simple sheck: 
+Now make sure that the partition is a valid EFI partition with a simple check.
+Take note of the first ELSE statement; if the file we are checking for dosent exist, increment the counter by 1.
+And in the second IF statement that checks if the counter is any number greater than 0.
+If the counter is greater than 0, the check for a valid EFI partition fails and DOS will be used instead.
 
 ```bash
-...
 #Check /mnt/boot/efi, basic check to see if the files in there exist or not.
 local counter=0
 for EFI_FILES in '/mnt/boot/efi/EFI/boot/BOOTX64.EFI' '/mnt/boot/efi/EFI/boot/fbx64.efi'
@@ -190,8 +193,142 @@ then
 else
   printf '[%bOK%b]   %s: is a valid EFI partition\n' $GREEN $NC $_uuid_of_efi_part >&2
 fi
-...
 ```
+
+After that we determine if the partition table is EFI or DOS. If `_uuid_of_efi_part` is empty then DOS will be used, if not, EFI.
+We also set another variable: `_target_platform` which is later used to determine if GRUB will be installed for EFI or DOS (see section: ENTER FUTURE SECTION CONTAINING THE SETUP FOR GRUB).
+
+```bash
+if [ -z $_uuid_of_efi_part ]
+then
+  printf '[%bINFO%b] Will install for the i386 platform\n' $YELLOW $NC >&2
+  _target_platform='i386-pc'
+else
+  printf '[%bINFO%b] Will install for the x86_64-efi platform\n' $YELLOW $NC >&2
+  _target_platform='x86_64-efi'
+fi
+```
+
+### Encrypting the Drive
+
+First we run an fsck on the partition we've previously choosen. 
+If this isn't done we will get an error when attempting to resize the disk.
+
+```bash
+sudo e2fsck -fy $1
+```
+
+Now shrink the filesystem down to its smallest possible size.
+
+```bash
+sudo resize2fs -M $1
+```
+
+Encrypt the drive, note that LUKS1 is being used. 
+
+```bash
+sudo cryptsetup-reencrypt --new --type=luks1 --reduce-device-size 4096S $1
+```
+
+Ask the user what the device containing the decrypted LUKS partition should be called. The decrypted device is mounted into /dev/mapper/The_Name_You_Choose
+
+```bash
+#Ask the user what the mapper name for the root filesystem should be.
+read -p 'Root filesystem mapper name [rootfs]: '
+
+#If input is left blank, then set the mapper name to 'rootfs'.
+case $REPLY in
+  "")
+   _rootfs_mapper_name='rootfs'
+  ;;
+  *)
+   _rootfs_mapper_name=$REPLY
+  ;;
+esac
+
+#Open the root filesystem as a mapped device.
+sudo cryptsetup open $1 $_rootfs_mapper_name
+```
+
+Now resize the partition back to its original size.
+
+```bash
+sudo resize2fs /dev/mapper/$_rootfs_mapper_name
+```
+
+Bind: /dev, /sys, and /proc into the decrypted LUKS device. If you do not do this then you WILL run into problems when running within the chroot jail.
+
+### Setup Chroot Jail
+
+```bash
+for _bindings_for_chroot_jail in dev sys proc
+do
+  if [[ `mountpoint /mnt/$_bindings_for_chroot_jail 2>/dev/null` != "/mnt/$_bindings_for_chroot_jail is a mountpoint" ]]
+  then	
+   sudo mount --bind /$_bindings_for_chroot_jail /mnt/$_bindings_for_chroot_jail
+  fi
+done
+```
+
+### Add Root Entry to Crypttab
+
+Get the UUID of the root filesystem. The variable `_sed_compatible_rootfs_mount_name` takes the value of `_initial_rootfs_mount` and adds a back-slash (`\`) *before* all forward-slash (`/`) characters. For instance, if the value of `_initial_rootfs_mount` is `/dev/sda1`, once it is parsed in the sed statement it becomes `\/dev\/sda1`. This is so the second sed statement is able to correctly parse the partition name.
+
+```bash
+local _sed_compatible_rootfs_mount_name=$(sed 's/\//\\\//g' <<< $_initial_rootfs_mount)
+
+local _rootfs_uuid=$(sed -n '/'"$_sed_compatible_rootfs_mount_name"'/{
+ s/^.*:\ //
+ s/\ .*//
+ s/UUID\=//
+ s/[\"]//g
+ p
+ }' <<< `sudo chroot /mnt blkid`)
+```
+
+Ask the user if they want to enable discards on Solid-State Drives. Read <a href="https://asalor.blogspot.com/2011/08/trim-dm-crypt-problems.html">this article</a> for more information.
+
+```bash
+function __subfunct_trim(){
+ read -p 'Allow TRIM operations for solid-state drives? (y/N): '
+
+ #Using the default $REPLY variable since it is automatically assigned anyway.
+ #And it saves writting a variable that will be used only once.
+ case $REPLY in 
+  y|Y)
+   discard=',discard'
+  ;;
+  n|N)
+   discard=''
+  ;;
+  *)
+   __subfunct_trim
+  ;;
+ esac
+}
+__subfunct_trim
+```
+
+Build the configuration variable `_crypttab_rootfs_entry`, take own of /mnt/etc/crypttab, append the value of `_crypttab_rootfs_entry` into /mnt/etc/crypttab, then set the owner back to root.
+
+```bash
+#Now write the entry for the root filesystem in /etc/crypttab	
+local _crypttab_rootfs_entry="$_rootfs_mapper_name UUID=$_rootfs_uuid none luks$discard,keyscript=/etc/initramfs-tools/hooks/unlock.sh"
+
+#Take own of the crypttab file so we can write to it.
+sudo chown $USER:$USER /mnt/etc/crypttab
+
+#Append the value of the above variable into /etc/crypttab
+echo "$_crypttab_rootfs_entry" >> /mnt/etc/crypttab
+
+#Set crypttab to be owned by root.
+sudo chown root:root /mnt/etc/crypttab
+
+#Unset the discard variable
+unset discard
+```
+
+
 
 #### Specific for EFI
 
