@@ -146,7 +146,6 @@ if [ -d '/mnt/boot/grub/x86_64-efi' ]
 then
 ...
 ```
-
 If so try to get the UUID of the EFI partition from the filesystem's /etc/fstab:
 
 ```bash
@@ -158,7 +157,41 @@ _uuid_of_efi_part=`sed -n '/\/boot\/efi/{
 }
 }' /mnt/etc/fstab`
 ```
-STOPPED HERE
+If the variable `_uuid_of_efi_part` is *not* empty then attempt to mount the EFI partition by its UUID:
+
+```bash
+...
+#Mount the EFI partition in /mnt/boot/efi
+printf '[%bINFO%b] Mounting potential EFI partition: %s\n' $YELLOW $NC $_uuid_of_efi_part >&2
+sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
+```
+Now make sure that the partition is a valid EFI partition with a simple sheck: 
+
+```bash
+...
+#Check /mnt/boot/efi, basic check to see if the files in there exist or not.
+local counter=0
+for EFI_FILES in '/mnt/boot/efi/EFI/boot/BOOTX64.EFI' '/mnt/boot/efi/EFI/boot/fbx64.efi'
+do
+  if [ -e $EFI_FILES ]
+  then
+    printf 'Verified existence of: %s\n' $EFI_FILES
+  else
+    printf '%s: Does not exist\n' $EFI_FILES
+    counter=$(($counter+1))
+   fi
+done
+
+#Did one or more critical EFI files go undiscovered?
+if [[ $counter -gt '0' ]]
+then
+  printf '[%bWARN%b] %s: partition is deemed invalid do to above errors\n         Will use DOS instead\n' $RED $NC   $_uuid_of_efi_part >&2
+  unset _uuid_of_efi_part
+else
+  printf '[%bOK%b]   %s: is a valid EFI partition\n' $GREEN $NC $_uuid_of_efi_part >&2
+fi
+...
+```
 
 #### Specific for EFI
 
