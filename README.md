@@ -19,7 +19,7 @@ This script is designed to encrypt a users root and swap partitions without loos
   * <a href="#auto-detect-partition-table-type">Auto Detect Partition Table Type</a>
   * <a href="#encrypting-the-drive">Encrypting the Drive</a>
   * <a href="#setup-chroot-jail">Setup Chroot Jail</a>
-  * <a href="#add-root-entry-to-\/mnt\/etc\/crypttab">Add Root Entry to /mnt/etc/crypttab</a>
+  * <a href="#add-root-entry-to-mntetccrypttab">Add Root Entry to /mnt/etc/crypttab</a>
 
 ## Download
 
