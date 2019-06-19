@@ -210,17 +210,7 @@ else
 fi
 ```
 
-After that we determine if the partition table is EFI or DOS. If `_uuid_of_efi_part` is empty then DOS will be used, if not, EFI.
-We also set another variable: `_target_platform` which is later used to determine if GRUB will be installed for EFI or DOS (see section: <a href="#configuring-grub">Configuring GRUB</a>).
-
-```bash
-if [ -z $_uuid_of_efi_part ]
-then
-  _target_platform='i386-pc'
-else
-  _target_platform='x86_64-efi'
-fi
-```
+Take note of the `_uuid_of_efi_part` variable. This is used to determine if GRUB will be installed for EFI or DOS as well as mounting the EFI partition by its UUID.
 
 ### Encrypting the Drive
 
@@ -425,14 +415,15 @@ Mount the EFI partition by its UUID.
 ```bash
 sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
 ```
+Install GRUB with the necessary modules and change the default boot directory to: `/boot/efi/EFI/ubuntu`.
 
-The `--efi-directory=/boot/efi` option installs GRUB to the mounted EFI partition. The necessary modules are installed with the `--modules="part_gpt part_msdos"` option. Use the `--boot-directory=/boot/efi/EFI/ubuntu` option to set where our GRUB images are installed under. Lastly, the `_target_platform` variable specifies to install EFI on an x86_64 CPU (There also exists an `i386-efi` option for systems with EFI support, but run 32-bit processors).
+```bash 
+sudo chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --modules="part_gpt part_msdos" --recheck
+```
 
-Now, use `grub-mkconfig` to generate our new GRUB images.
+Now use `grub-mkconfig` to generate a new config file for our GRUB install.
 
 ```bash
-sudo chroot /mnt grub-install --target=$_target_platform --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --modules="part_gpt part_msdos" --recheck
-
 sudo chroot /mnt grub-mkconfig -o /boot/efi/EFI/ubuntu/grub/grub.cfg
 ```
 
