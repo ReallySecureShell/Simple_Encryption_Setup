@@ -566,8 +566,6 @@ After the operation is complete, mount the filesystem into `/mnt`.
 sudo mount /dev/<your_root_partition> /mnt
 ```
 
-Now we need to deconfigure what the script previously configured.
-
 Setup chroot environment by binding /sys, /dev, /proc into the mounted filesystem, then chroot into it.
 
 ```bash
