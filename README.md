@@ -623,7 +623,7 @@ update-grub
 update-initramfs -c -k all
 ```
 
-Lastly unmount the mounted filesystem.
+Unmount the mounted filesystem.
 
 ```bash
 #exit the chroot
