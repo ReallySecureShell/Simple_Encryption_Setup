@@ -609,7 +609,8 @@ grub-install --recheck /dev/<root_device>
 
 #For x86_64-efi
 mount /dev/<EFI_partition> /boot/efi
-grub-install #############################
+grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --recheck
+grub-mkconfig -o /boot/efi/EFI/ubuntu/grub/grub.cfg
 ```
 
 Update GRUB and initramfs.
