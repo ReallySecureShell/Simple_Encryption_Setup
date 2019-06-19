@@ -215,13 +215,13 @@ function FUNCT_detect_partition_table_type(){
 	#Unmount the root partition
 	printf '[%bINFO%b] Detection finished, unmounting /mnt\n' $YELLOW $NC >&2
 	sudo umount /mnt
+
+	#Tell the user which partition table will be used
 	if [ -z $_uuid_of_efi_part ]
 	then
 		printf '[%bINFO%b] Will install for the i386 platform\n' $YELLOW $NC >&2
-		_target_platform='i386-pc'
 	else
 		printf '[%bINFO%b] Will install for the x86_64-efi platform\n' $YELLOW $NC >&2
-		_target_platform='x86_64-efi'
 	fi
 }
 FUNCT_detect_partition_table_type
@@ -454,7 +454,7 @@ function FUNCT_modify_grub_configuration(){
 	#Mount EFI partition if installing for EFI.
 	#And install grub with EFI.
 	#Else install for DOS.
-	if [ $_target_platform == 'x86_64-efi' ]
+	if [ ! -z $_uuid_of_efi_part ]
 	then
 		#Mount EFI partition in /mnt/boot/efi
 		printf '[%bINFO%b] Mounting EFI partition: %s to /mnt/boot/efi\n' $YELLOW $NC $_uuid_of_efi_part >&2
@@ -462,7 +462,7 @@ function FUNCT_modify_grub_configuration(){
 
 		#Install grub with EFI support		
 		printf '[%bINFO%b] Installing grub with EFI support\n' $YELLOW $NC >&2
-		sudo chroot /mnt grub-install --target=$_target_platform --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --modules="part_gpt part_msdos" --recheck
+		sudo chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --modules="part_gpt part_msdos" --recheck
 		sudo chroot /mnt grub-mkconfig -o /boot/efi/EFI/ubuntu/grub/grub.cfg
 	else
 		#Remove partition numbers from the end of the root device.
