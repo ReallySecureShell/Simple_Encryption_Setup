@@ -595,11 +595,11 @@ GRUB_ENABLE_CRYPTODISK=y
 GRUB_PRELOAD_MODULES="luks cryptodisk"
 ```
 
-While still within the chroot, re-install GRUB onto your root device.
+Now we need to reinstall GRUB. How GRUB is installed depends on the type of partition table (EFI/DOS).
 
-If installing for `i386-pc` note that the device you choose is NOT a partition. For example if your `/` partition is located on /dev/sda1, then install GRUB on /dev/sda.
+If installing for `i386-pc` note that the device you choose is NOT a partition. For example: if your `/` partition is located on /dev/sda1, then install GRUB on /dev/sda i.e. you simply remove the partition number from the device.
 
-If installing for `x86_64-efi` mount the EFI partition into `/boot/efi` while still inside the chroot.
+If installing for `x86_64-efi` mount the EFI partition into `/boot/efi` before installing GRUB.
 
 ```bash
 #For i386-pc
