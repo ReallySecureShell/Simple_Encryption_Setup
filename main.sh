@@ -451,9 +451,6 @@ function FUNCT_modify_grub_configuration(){
 	#Have grub preload the required modules for luks and cryptodisks.
 	sudo sed -Ei 's/GRUB_ENABLE_CRYPTODISK=y/&\nGRUB_PRELOAD_MODULES="luks cryptodisk"/' /mnt/etc/default/grub
 
-	#Get the device to reinstall grub too.
-	local _grub_install_device=${_initial_rootfs_mount%%[0-9]}
-
 	#Mount EFI partition if installing for EFI.
 	#And install grub with EFI.
 	#Else install for DOS.
@@ -468,6 +465,9 @@ function FUNCT_modify_grub_configuration(){
 		sudo chroot /mnt grub-install --target=$_target_platform --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --modules="part_gpt part_msdos" --recheck
 		sudo chroot /mnt grub-mkconfig -o /boot/efi/EFI/ubuntu/grub/grub.cfg
 	else
+		#Remove partition numbers from the end of the root device.
+        	local _grub_install_device=${_initial_rootfs_mount%%[0-9]}
+
 		#Install grub with i386 architecture support ONLY.
         	printf '[%bINFO%b] Installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
 		sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_install_device
