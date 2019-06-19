@@ -630,7 +630,7 @@ Lastly unmount the mounted filesystem.
 exit
 
 #Unmount the bindings.
-sudo umount /mnt/{proc,dev,sys}
+sudo umount /mnt/{proc,sys,dev}
 
 #If the EFI directory is mounted, unmount it.
 sudo umount /mnt/boot/efi
