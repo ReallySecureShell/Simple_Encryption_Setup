@@ -615,7 +615,7 @@ update-initramfs -c -k all
 Unmount the mounted filesystem.
 
 ```bash
-#exit the chroot
+#Exit the chroot
 exit
 
 #Unmount the bindings.
