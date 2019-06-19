@@ -27,7 +27,8 @@ This script is designed to encrypt a users root and swap partitions without loos
   * <a href="#setting-up-encrypted-swap">Setting Up Encrypted Swap</a>
   * <a href="#update-grub-and-initramfs">Update GRUB and Initramfs</a>
 * <a href="#recovery">Recovery</a>
-  * <a href="#decrypt-drive">Decrypt Drive</a>
+  * <a href="#recover-from-backup">Recover From Backup</a>
+  * <a href="#recover-without-a-backup">Recover WITHOUT a Backup</a>
 
 ## Download
 
@@ -83,7 +84,7 @@ Choose: The directory where you want to store the image
 Choose: Beginner
 <img src="./Assets/Clonezilla_backup_step_6.png" width="85%" />
 
-Choose: savedisk
+Choose: savedisk<br>
 <img src="./Assets/Clonezilla_backup_step_7.png" width="85%" />
 
 Optionally write a name for your image or leave it as the default.
@@ -541,11 +542,94 @@ sudo chroot /mnt update-initramfs -c -k all
 
 ## Recovery
 
+### Recover From Backup
 If you have a backup, then restore it using Clonezilla. The steps to restore to a backup are nearly identical to making a backup. 
 
 Choose <b>restoredisk</b> when prompted with this screen:
 
 <img src="./Assets/restore_from_backup.png" width="85%" />
 
-### Decrypt Drive
+### Recover WITHOUT a Backup
 
+If a backup was not created you STILL have a chance at fully recovering your system.
+
+Boot back into Clonezilla and load into a terminal. Once you've done so run the below command.
+Doing so will remove all the encryption from the drive (including the LUKS headers).
+
+```bash
+sudo cryptsetup-reencrypt --decrypt /dev/<your_root_partition>
+```
+
+After the operation is complete, mount the filesystem into `/mnt`.
+
+```bash
+sudo mount /dev/<your_root_partition> /mnt
+```
+
+Now we need to deconfigure what was already configured. Since there is no way of knowing in which phase an error occured, all steps will be specified.
+
+Setup chroot environment by binding /sys, /dev, /proc into the mounted filesystem, then chroot into it.
+
+```bash
+for i in proc sys dev;do sudo mount --bind /$i /mnt/$i;done
+
+#Now chroot into the filesystem
+sudo chroot /mnt
+```
+
+Remove initramfs unlock.sh and unlock.key. This is just for cleanup.
+
+```bash
+rm /etc/initramfs-tools/hooks/unlock.sh
+rm /etc/initramfs-tools/scripts/unlock.key
+```
+
+In /etc/crypttab, remove the line that resembles the following:
+
+```
+rootfs UUID=4369eca1-a93c-45eb-a00b-e08d58831810 none luks,discard,keyscript=/etc/initramfs-tools/hooks/unlock.sh
+```
+
+Remove the two lines in /etc/default/grub that resemble the following:
+
+```
+GRUB_ENABLE_CRYPTODISK=y
+GRUB_PRELOAD_MODULES="luks cryptodisk"
+```
+
+While still within the chroot, re-install GRUB onto your root device. This IS NOT a partition! For example if the partition containing your `/` is /dev/sda1 then you will be installing GRUB onto /dev/sda:
+
+```bash
+#For i386-pc
+grub-install --recheck /dev/<root_device>
+
+#For x86_64-efi
+grub-install #############################
+```
+
+Update GRUB and initramfs.
+
+```bash
+#Update grub configuration.
+update-grub
+
+#Re-generate initramfs images for all kernels.
+update-initramfs -c -k all
+```
+
+Lastly unmount the mounted filesystem.
+
+```bash
+#exit the chroot
+exit
+
+#Now not inside the chroot, unmount the bindings.
+sudo umount /mnt/dev
+sudo umount /mnt/sys
+sudo umount /mnt/proc
+
+#Unmount /mnt
+sudo umount /mnt
+```
+
+Now attempt to boot back into your drive.
