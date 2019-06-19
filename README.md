@@ -628,7 +628,7 @@ Lastly unmount the mounted filesystem.
 #exit the chroot
 exit
 
-#Now not inside the chroot, unmount the bindings.
+#Unmount the bindings.
 sudo umount /mnt/{proc,dev,sys}
 
 #If the EFI directory is mounted, unmount it.
