@@ -541,7 +541,11 @@ sudo chroot /mnt update-initramfs -c -k all
 
 ## Recovery
 
-If the script renders your computer unbootable you can either `restore from a backup`. However, if you neglected to create a backup, you can follow the steps down below.
+If you have a backup, then restore it using Clonezilla. The steps to restore to a backup are nearly identical to making a backup. 
+
+Choose <b>restoredisk</b> when prompted with this screen:
+
+<img src="./Assets/restore_from_backup.png" width="85%" />
 
 ### Decrypt Drive
 
