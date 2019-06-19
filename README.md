@@ -26,7 +26,7 @@ This script is designed to encrypt a user's root and swap partitions without loo
     * <a href="#grub-install-i386">GRUB Install: i386</a>
   * <a href="#setting-up-encrypted-swap">Setting Up Encrypted Swap</a>
   * <a href="#update-grub-and-initramfs">Update GRUB and Initramfs</a>
-* <a href="#recovery">Recovery</a>
+* <a href="#recovery">5.0: Recovery</a>
   * <a href="#recover-from-backup">Recover From Backup</a>
   * <a href="#recover-without-a-backup">Recover WITHOUT a Backup</a>
 
