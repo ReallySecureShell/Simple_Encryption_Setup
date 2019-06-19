@@ -6,7 +6,7 @@
 
 ## Description
 
-This script is designed to encrypt a users root and swap partitions without loosing data. The intention of which is to stop your data from being accessed if your computer is lost or stolen.
+This script is designed to encrypt a user's root and swap partitions without loosing data. The intention of which is to stop your data from being accessed if your computer is lost or stolen.
 
 * <a href="#download">1.0: Download</a>
 * <a href="#pre-setup">2.0: Pre-Setup</a>
