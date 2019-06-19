@@ -590,7 +590,7 @@ In /etc/crypttab, remove the line that resembles the following:
 rootfs UUID=4369eca1-a93c-45eb-a00b-e08d58831810 none luks,discard,keyscript=/etc/initramfs-tools/hooks/unlock.sh
 ```
 
-Remove the two lines in /etc/default/grub that resemble the following:
+Remove the following two lines in /etc/default/grub:
 
 ```
 GRUB_ENABLE_CRYPTODISK=y
