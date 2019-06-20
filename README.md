@@ -8,14 +8,14 @@
 
 This script is designed to encrypt a user's root and swap partitions without loosing data. The intention of which is to stop your data from being accessed if your computer is lost or stolen.
 
-* <a href="#download">1.0: Download</a>
-* <a href="#pre-setup">2.0: Pre-Setup</a>
+* <a href="#10-download">1.0: Download</a>
+* <a href="#20-pre-setup">2.0: Pre-Setup</a>
   * <a href="#required-packages">Required Packages</a>
   * <a href="#get-a-live-cd">Get a Live-CD</a>
   * <a href="#backup-your-system">Backup Your System</a>
-* <a href="#limitations">3.0: Limitations</a>
+* <a href="#30-limitations">3.0: Limitations</a>
   * <a href="#compatible-partition-schemes">Compatible Partition Schemes</a>
-* <a href="#in-depth-operation">4.0: In-Depth Operation</a>
+* <a href="#40-in-depth-operation">4.0: In-Depth Operation</a>
   * <a href="#auto-detect-partition-table-type">Auto Detect Partition Table Type</a>
   * <a href="#encrypting-the-drive">Encrypting the Drive</a>
   * <a href="#setup-chroot-jail">Setup Chroot Jail</a>
@@ -26,7 +26,7 @@ This script is designed to encrypt a user's root and swap partitions without loo
     * <a href="#grub-install-i386">GRUB Install: i386</a>
   * <a href="#setting-up-encrypted-swap">Setting Up Encrypted Swap</a>
   * <a href="#update-grub-and-initramfs">Update GRUB and Initramfs</a>
-* <a href="#recovery">5.0: Recovery</a>
+* <a href="#50-recovery">5.0: Recovery</a>
   * <a href="#recover-from-backup">Recover From Backup</a>
   * <a href="#recover-without-a-backup">Recover WITHOUT a Backup</a>
 
@@ -38,7 +38,7 @@ Or use the shortend URL:
 
     curl --location 'https://tinyurl.com/yxekdxwq' > encrypt.sh && chmod 744 encrypt.sh
 
-## Pre-Setup
+## 2.0: Pre-Setup
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
 A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
@@ -105,7 +105,7 @@ Choose: -senc Not to encrypt the image
 Choose: -p choose (boot into the shell when finished)
 <img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
 
-## Limitations
+## 3.0: Limitations
 
 | Drawbacks and Shortcomings |
 | --- |
@@ -147,7 +147,7 @@ Each block specifies a whole drive. With ROOT, SWAPFILE/SWAP, and EFI representi
 
 ```
 
-## In-Depth Operation
+## 4.0: In-Depth Operation
 
 The following subsections will discuss the inner workings of the script. This information is provided to help the user replicate and improve upon the existing code. Be aware that the following code is only detailing the core functionality of the script.
 
@@ -531,7 +531,7 @@ sudo chroot /mnt update-grub
 sudo chroot /mnt update-initramfs -c -k all
 ```
 
-## Recovery
+## 5.0: Recovery
 
 ### Recover From Backup
 If you have a backup, then restore it using Clonezilla. The steps to restore to a backup are nearly identical to making a backup. 
