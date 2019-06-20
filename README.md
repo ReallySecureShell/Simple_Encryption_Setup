@@ -147,6 +147,16 @@ Each block specifies a whole drive. With ROOT, SWAPFILE/SWAP, and EFI representi
 
 ```
 
+The following are examples of how one would setup their partitions to meet the requirements above.
+
+#### Example for EFI
+
+<img src="./Assets/compatible_efi_partition_scheme.png" width="100%" />
+
+#### Example for DOS
+
+<img src="./Assets/compatible_dos_partition_scheme.png" width="100%" />
+
 ## 4.0: In-Depth Operation
 
 The following subsections will discuss the inner workings of the script. This information is provided to help the user replicate and improve upon the existing code. Be aware that the following code is only detailing the core functionality of the script.
