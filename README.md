@@ -30,7 +30,7 @@ This script is designed to encrypt a user's root and swap partitions without loo
   * <a href="#recover-from-backup">Recover From Backup</a>
   * <a href="#recover-without-a-backup">Recover WITHOUT a Backup</a>
 
-## Download
+## 1.0: Download
 
     curl 'https://raw.githubusercontent.com/ReallySecureShell/Full_Disk_Encryption/master/main.sh' > encrypt.sh && chmod 744 encrypt.sh
 
