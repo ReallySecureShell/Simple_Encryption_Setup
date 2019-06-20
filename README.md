@@ -183,9 +183,9 @@ printf '[%bINFO%b] Mounting potential EFI partition: %s\n' $YELLOW $NC $_uuid_of
 sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
 ```
 Now make sure that the partition is a valid EFI partition with a simple check.
-Take note of the first ELSE statement; if the file we are checking for dosent exist, increment the counter by 1.
-And in the second IF statement that checks if the counter is any number greater than 0.
-If the counter is greater than 0, the check for a valid EFI partition fails and DOS will be used instead.
+Take note of the first ELSE statement; if the file we are checking for doesn't exist, increment the counter by 1.
+The second IF statement checks if the counter is any number greater than 0.
+If `counter` is greater than 0 use DOS (`unset _uuid_of_efi_part`), else use EFI.
 
 ```bash
 #Check /mnt/boot/efi, basic check to see if the files in there exist or not.
