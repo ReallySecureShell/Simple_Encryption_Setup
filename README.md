@@ -210,7 +210,7 @@ else
 fi
 ```
 
-Take note of the `_uuid_of_efi_part` variable. This is used to determine if GRUB will be installed for EFI or DOS as well as mounting the EFI partition by its UUID.
+The `_uuid_of_efi_part` variable is used to determine if GRUB will be installed for EFI or DOS as well as mounting the EFI partition by its UUID.
 
 ### Encrypting the Drive
 
