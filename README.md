@@ -6,7 +6,7 @@
 
 ## Description
 
-This script is designed to encrypt a user's root and swap partitions without loosing data. The intention of which is to stop your data from being accessed if your computer is lost or stolen.
+This tool is intended to be used in a live-iso for the purpose of encrypting the users `/` and swap partitions.
 
 * <a href="#10-download">1.0: Download</a>
 * <a href="#20-pre-setup">2.0: Pre-Setup</a>
