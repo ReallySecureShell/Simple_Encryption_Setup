@@ -6,7 +6,7 @@
 
 ## Description
 
-This tool is intended to be used in a live-iso for the purpose of encrypting the users `/` and swap partitions.
+This program aims to automate the encrypting of a users `/` and swap partitions from a live-iso.
 
 * <a href="#10-download">1.0: Download</a>
 * <a href="#20-pre-setup">2.0: Pre-Setup</a>
