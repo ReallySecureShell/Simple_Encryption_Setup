@@ -136,7 +136,7 @@ Note: The first entry in each block is the <i>type</i> of partition table (EFI/D
   |________________________|        |                        |
   |    EFI in /boot/efi    |        |    EFI in /boot/efi    |
   |________________________|        |________________________|
-  
+
 
 3: ________________________       4: ________________________ 
   |          DOS           |        |          DOS           |
