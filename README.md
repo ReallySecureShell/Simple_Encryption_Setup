@@ -58,7 +58,7 @@ There are two required packages: initramfs-tools, and cryptsetup. Both are avail
 If you need an image writer you can <a href="http://wiki.rosalab.ru/ru/images/2/24/RosaImageWriter-2.6.1-lin-x86_64.txz">download</a> RosaImageWriter.
 
 We are using Clonezilla because it's the OS where all testing is being done. That way we make sure the script acts as expected.
-If you have a version of Clonezilla already, <b>make sure it's at least version `2.6.1-25`</b>. Because there is a bug on (at least) version 2.5.6-22 that when attempting to chroot, all attempts will fail with a `bus error`.
+If you have a version of Clonezilla already, <b>make sure it's at least version `2.6.1-25`</b>. Earlier versions have a problem with chrooting that causes a <i>bus error</i> to be thrown.
 
 ### Backup Your System
 
@@ -109,6 +109,7 @@ Choose: -p choose (boot into the shell when finished)
 
 | Drawbacks and Shortcomings |
 | --- |
+| Only works with i386 and x86_64 systems |
 | Incompatible with LVM (<a href="https://wiki.archlinux.org/index.php/Dm-crypt/Encrypting_an_entire_system#LUKS_on_LVM">although it is still possible to setup encryption on LVM</a>) | 
 | Only supports "basic" partitioning schemes (see section: <a href="#compatible-partition-schemes">Compatible Partition Schemes</a>) |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
@@ -159,7 +160,7 @@ The following are examples of how one would setup their partitions to meet the r
 
 ## 4.0: In-Depth Operation
 
-The following subsections will discuss the inner workings of the script. This information is provided to help the user replicate and improve upon the existing code. Be aware that the following code is only detailing the core functionality of the script.
+The following subsections will discuss the inner workings of the script. This information is provided to help the user replicate and improve upon the existing code. <b>Be aware that the following code is only detailing the core functionality of the script</b>.
 
 ### Auto Detect Partition Table Type
 
