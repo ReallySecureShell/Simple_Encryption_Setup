@@ -641,4 +641,4 @@ sudo umount /mnt/boot/efi
 sudo umount /mnt
 ```
 
-Now attempt to boot back into your drive.
+Now attempt to boot back into your system.
