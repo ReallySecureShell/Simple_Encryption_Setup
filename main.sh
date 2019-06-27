@@ -70,7 +70,7 @@ FUNCT_post_initialization
 function FUNCT_populate_resume_array(){
 	#Define the resume array before populating.
 	_resume_array=()
-	
+
 	#Define a count variable that corrisponds to the
 	#number of iterations in the below while loop.
 	local _array_index=0
@@ -80,7 +80,7 @@ function FUNCT_populate_resume_array(){
 		#Now, populate the _resume_array array;
 		#using the _array_index variable to specify
 		#the index.
-		_resume_array[$_array_index]=$___COMPLETED_INSTRUCTIONS___ 
+		_resume_array[$_array_index]=$___COMPLETED_INSTRUCTIONS___
 
 		#Increment the _array_index variable by
 		#1 for every iteration.
@@ -109,10 +109,10 @@ function FUNCT_get_rootfs_mountpoint(){
 			then
 				printf '[%bWARN%b] Not a valid block device!\n' $RED $NC >&2
 				__subfunct_check_if_valid_block_device
-			fi 
+			fi
 		}
 		__subfunct_check_if_valid_block_device
-		echo "ROOTFS_partition:$_initial_rootfs_mount" >> RESUME.log 
+		echo "ROOTFS_partition:$_initial_rootfs_mount" >> RESUME.log
 	else
 		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[0]} >&2
 		_initial_rootfs_mount=${_resume_array[0]##ROOTFS_partition:}
@@ -127,7 +127,7 @@ function FUNCT_detect_partition_table_type(){
 	#Temporarily mount the root filesystem to search for EFI.
 	printf '[%bINFO%b] Temporarily mounting %s to determine partition table type\n' $YELLOW $NC $_initial_rootfs_mount >&2
 
-	#Mount root partition into /mnt 
+	#Mount root partition into /mnt
 	if [[ `lsblk --output MOUNTPOINT $_initial_rootfs_mount | grep -P '^\/mnt$'` != '/mnt' ]]
 	then
 		sudo mount $_initial_rootfs_mount /mnt
@@ -141,7 +141,7 @@ function FUNCT_detect_partition_table_type(){
 				exit 1
 			fi
 		;;
-		*)	
+		*)
 			printf '[%bFAIL%b] Failed to mount partition\n' $RED $NC >&2
 			exit 1
 		;;
@@ -152,7 +152,7 @@ function FUNCT_detect_partition_table_type(){
 	if [ -d '/mnt/boot/grub/x86_64-efi' ]
 	then
 		printf '[%bINFO%b] Grub reports being installed with EFI support. Verifying\n' $YELLOW $NC >&2
-		
+
 		#Check /mnt/etc/fstab for /boot/efi
 		printf '[%bINFO%b] Reading fstab information for the %s filesystem\n' $YELLOW $NC $_initial_rootfs_mount >&2
 
@@ -181,7 +181,7 @@ function FUNCT_detect_partition_table_type(){
 			#Mount the EFI partition in /mnt/boot/efi
 			printf '[%bINFO%b] Mounting potential EFI partition: %s\n' $YELLOW $NC $_uuid_of_efi_part >&2
 			sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
-			
+
 			#Check /mnt/boot/efi, basic check to see if the files in there exist or not.
 			local counter=0
 			for EFI_FILES in '/mnt/boot/efi/EFI/boot/BOOTX64.EFI' '/mnt/boot/efi/EFI/boot/fbx64.efi'
@@ -247,13 +247,57 @@ function FUNCT_initial_drive_encrypt(){
 
 	if [[ ${_resume_array[3]} != "cryptsetup-reencrypt" ]]
 	then
-		#Encrypt the drive
-		sudo cryptsetup-reencrypt --new --type=luks1 --reduce-device-size 4096S $1
+		#Define a local counter that stores the number of times CTRL-C was pressed.
+		local counter=0
+
+		#Sub-function helps better control the execution of the encryption command.
+		function __subfunct_handle_cryptsetup_input_errors(){
+			#Run the encryption command. Send standard error to the CRYPTSETUP_ERR.log file in the PWD.
+			sudo cryptsetup-reencrypt --new --type=luks1 --reduce-device-size 4096S $1 2> $2
+
+			#Set a trap for CTRL-C, increment by one if SIGINT was caught.
+			trap 'counter=$(($counter+1))' SIGINT
+
+			#Read the CRYPTSETUP_ERR.log file for its contents.
+			case $(cat $2) in
+				'Passphrases do not match.') #If both passwords don't match.
+					cat $2
+					__subfunct_handle_cryptsetup_input_errors $1 $2
+				;;
+				'Error reading passphrase from terminal.') #If the user invokes a CTRL-C.
+					#Define the IFS variable so a space isn't treated as a new line.
+					IFS=$'\n'
+
+					#If statements handle the dialog that is displayed when the user attempts to CTRL-C.
+					if [ $counter == '1' ]
+					then
+						printf '\nI: Next CTRL-C will exit script\n'
+					elif [ $counter == '2' ]
+					then
+						printf '\nI: Exiting\n'
+						rm $2
+						exit 1
+					fi
+					#Reset the IFS environment variable to default value.
+					unset IFS
+
+                                        #Print the error that was caught.
+                                        cat $2
+					__subfunct_handle_cryptsetup_input_errors $1 $2
+				;;
+				*) #If none of the above. Exit the sub-function.
+					rm $2
+					return 0
+				;;
+			esac
+		}
+		__subfunct_handle_cryptsetup_input_errors $1 'CRYPTSETUP_ERR.log'
+
 		echo "cryptsetup-reencrypt" >> RESUME.log
 	else
 		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[3]} >&2
 	fi
-	
+
 	if [[ ! ${_resume_array[4]} =~ "cryptsetup-open" ]]
         then
                 #Ask the user what the mapper name for the root filesystem should be.
@@ -311,7 +355,7 @@ function FUNCT_setup_mount(){
 	#Mount the decrypted filesystem in the /mnt directory
 	if [[ `mountpoint /mnt 2>/dev/null` != "/mnt is a mountpoint" ]]
 	then
-		printf '[%bINFO%b] Mounting %s into /mnt\n' $YELLOW $NC $1 >&2 
+		printf '[%bINFO%b] Mounting %s into /mnt\n' $YELLOW $NC $1 >&2
 		sudo mount $1 /mnt
 		if [[ `mountpoint /mnt 2>/dev/null` == "/mnt is a mountpoint" ]]
 		then
@@ -324,11 +368,11 @@ function FUNCT_setup_mount(){
 
 	#To make sure the system will be mostly usable when we chroot,
 	#bind the dev, sys, and proc directories to the decrypted
-	#filesystem.	
+	#filesystem.
 	for _bindings_for_chroot_jail in dev sys proc
 	do
 		if [[ `mountpoint /mnt/$_bindings_for_chroot_jail 2>/dev/null` != "/mnt/$_bindings_for_chroot_jail is a mountpoint" ]]
-		then	
+		then
 			sudo mount --bind /$_bindings_for_chroot_jail /mnt/$_bindings_for_chroot_jail
 		fi
 	done
@@ -339,7 +383,7 @@ function FUNCT_add_rootfs_to_crypttab(){
 	#Get the UUID of the root filesystem.
 	#Note this is NOT the mapper UUID but
 	#the UUID of the actual encrypted
-	#partition. 	
+	#partition.
 	local _sed_compatible_rootfs_mount_name=$(sed 's/\//\\\//g' <<< $_initial_rootfs_mount)
 
 	local _rootfs_uuid=$(sed -n '/'"$_sed_compatible_rootfs_mount_name"'/{
@@ -360,7 +404,7 @@ function FUNCT_add_rootfs_to_crypttab(){
 
 		#Using the default $REPLY variable since it is automatically assigned anyway.
 		#And it saves writting a variable that will be used only once.
-		case $REPLY in 
+		case $REPLY in
 			y|Y)
 				discard=',discard'
 			;;
@@ -374,9 +418,9 @@ function FUNCT_add_rootfs_to_crypttab(){
 	}
 	__subfunct_trim
 
-	#Now write the entry for the root filesystem in /etc/crypttab	
+	#Now write the entry for the root filesystem in /etc/crypttab
 	local _crypttab_rootfs_entry="$_rootfs_mapper_name UUID=$_rootfs_uuid none luks$discard,keyscript=/etc/initramfs-tools/hooks/unlock.sh"
-	
+
 	#Take own of the crypttab file so we can write to it.
 	sudo chown $USER:$USER /mnt/etc/crypttab
 
@@ -429,7 +473,7 @@ _unlock_script_file_data
 
 	#Set ownership for unlock.sh back to root and set unlock.key to be owned by root also.
 	sudo chown root:root /mnt/etc/initramfs-tools/hooks/unlock.sh
-	sudo chown root:root /mnt/etc/initramfs-tools/scripts/unlock.key 
+	sudo chown root:root /mnt/etc/initramfs-tools/scripts/unlock.key
 
 	#Set restrictive permissions on the keyscript and keyfile.
 	printf '[%bINFO%b] Applying restrictive permissions to the key and script files\n' $YELLOW $NC >&2
@@ -460,7 +504,7 @@ function FUNCT_modify_grub_configuration(){
 		printf '[%bINFO%b] Mounting EFI partition: %s to /mnt/boot/efi\n' $YELLOW $NC $_uuid_of_efi_part >&2
 		sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
 
-		#Install grub with EFI support		
+		#Install grub with EFI support
 		printf '[%bINFO%b] Installing grub with EFI support\n' $YELLOW $NC >&2
 		sudo chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --modules="part_gpt part_msdos" --recheck
 		sudo chroot /mnt grub-mkconfig -o /boot/efi/EFI/ubuntu/grub/grub.cfg
@@ -498,10 +542,10 @@ function FUNCT_create_encrypted_swap(){
 		#Tell the user they need to enter the path to the swap device.
 		printf '[%bINFO%b] Enter the location of the swap device\n' $YELLOW $NC >&2
 
-		#Ask the user for the swap partition to encrypt 
+		#Ask the user for the swap partition to encrypt.
         	read -p 'Partition containing the SWAP filesystem: ' _initial_swapfs_mount
 
-		if [[ -z `sudo chroot /mnt blkid -t TYPE="swap" $_initial_swapfs_mount` ]] 
+		if [[ -z `sudo chroot /mnt blkid -t TYPE="swap" $_initial_swapfs_mount` ]]
 		then
 			printf '[%bWARN%b] Not a swap device!\n' $RED $NC >&2
 			__subfunct_prep_for_encrypting_swap
@@ -548,10 +592,10 @@ function FUNCT_create_encrypted_swap(){
 
 	#Append new swapfs entry into /mnt/etc/fstab
 	printf '[%bINFO%b] Adding swap entry to /mnt/etc/fstab\n' $YELLOW $NC >&2
-	echo "/dev/mapper/swap none swap sw 0 0" >> /mnt/etc/fstab	
+	echo "/dev/mapper/swap none swap sw 0 0" >> /mnt/etc/fstab
 
 	#Reset ownership on /mnt/etc/fstab
-	sudo chown root:root /mnt/etc/fstab	
+	sudo chown root:root /mnt/etc/fstab
 
 	#If the resume file does not exist, create it.
 	if [ ! -e /mnt/etc/initramfs-tools/conf.d/resume ]
@@ -576,7 +620,7 @@ fi
 function FUNCT_update_changes_to_system(){
 	printf '[%bINFO%b] Applying changes to grub configuration.\n' $YELLOW $NC >&2
 	#Update grub
-	sudo chroot /mnt update-grub	
+	sudo chroot /mnt update-grub
 
 	printf '[%bINFO%b] Updating all initramfs configurations.\n' $YELLOW $NC >&2
 
@@ -590,7 +634,7 @@ FUNCT_update_changes_to_system
 function FUNCT_cleanup(){
 	for UNMOUNT in /mnt/proc /mnt/sys /mnt/dev /mnt
 	do
-		if [ ! -z $_uuid_of_efi_part ] && [ $UNMOUNT == '/mnt/dev' ] 
+		if [ ! -z $_uuid_of_efi_part ] && [ $UNMOUNT == '/mnt/dev' ]
 		then
 			printf '[%bINFO%b] Unmounting /mnt/boot/efi\n' $YELLOW $NC >&2
 			sudo umount /mnt/boot/efi
@@ -601,7 +645,7 @@ function FUNCT_cleanup(){
 	#Close the LUKS device
 	printf '[%bINFO%b] Closing mapped ROOT device: /dev/mapper/%s\n' $YELLOW $NC $_rootfs_mapper_name >&2
 	sudo cryptsetup close /dev/mapper/$_rootfs_mapper_name
-	
+
 	#End message
 	printf '[%bDONE%b] Cleanup complete. Exiting\n' $GREEN $NC >&2
 }
