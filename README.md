@@ -114,7 +114,7 @@ Choose: -p choose (boot into the shell when finished)
 | Only supports "basic" partitioning schemes (see section: <a href="#compatible-partition-schemes">Compatible Partition Schemes</a>) |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because grub does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
-| Requires initramfs-tools instead of the more common dracut utility (If initramfs-tools are not in the repository, you'll have to install it from <a href="https://wiki.debian.org/initramfs-tools">source</a>) |
+| Requires initramfs-tools instead of the more common dracut utility (If initramfs-tools are not in the repository you'll have to install it from <a href="https://wiki.debian.org/initramfs-tools">source</a>) |
 
 ### Compatible Partition Schemes
 
