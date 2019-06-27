@@ -120,9 +120,11 @@ Choose: -p choose (boot into the shell when finished)
 
 The diagram that follows details known working partition schemes. If your partitions do not match any of the following there is NO GUARANTEE that the script will operate properly.
 
-Note: The partition "ROOT" is <b>implicit</b> to all files/directories (except for the swapfile). For example, if you could have a separate `/home` partition, it would be explicitly specified.
+The partition "ROOT" is <b>implicit</b> to all files/directories (except for the swapfile). For example, if you could have a separate `/home` partition, it would be explicitly specified.
 
 Each block specifies a whole drive. With ROOT, SWAPFILE/SWAP, and EFI representing partitions on those drives.
+
+Note: The first entry in each block is the <i>type</i> of partition table (EFI/DOS), i.e. not a partition.
 
 ```
 1: ________________________       2: ________________________ 
