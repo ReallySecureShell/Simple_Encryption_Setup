@@ -6,7 +6,7 @@
 
 ## Description
 
-This program aims to automate the encrypting of a users `/` and swap partitions from a live-iso.
+This script adds a basic encryption setup to your system <i>without</i> losing data.
 
 * <a href="#10-download">1.0: Download</a>
 * <a href="#20-pre-setup">2.0: Pre-Setup</a>
