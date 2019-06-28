@@ -27,7 +27,7 @@ This script adds a basic encryption setup to your system <i>without</i> losing d
 
 ## 1.0: Download
 
-Once in the Clonezilla terminal (see section <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>) you can download the script with either one of the following commands.
+Once in the Clonezilla terminal (see section <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>) you can download the script with one of the following commands.
 
     curl 'https://raw.githubusercontent.com/ReallySecureShell/Simple_Encryption_Setup/master/main.sh' > encrypt.sh && chmod 744 encrypt.sh
 
