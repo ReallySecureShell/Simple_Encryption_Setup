@@ -91,16 +91,19 @@ Choose: -senc Not to encrypt the image
 Choose: -p choose (boot into the shell when finished)
 <img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
 
-Once the backup is finished boot into the Clonezilla terminal. This can be done by selecting `Enter_Shell` when prompted (see <a href="https://github.com/ReallySecureShell/Simple_Encryption_Setup/blob/master/Assets/Clonezilla_backup_step_1.png">Clonezilla_backup_step_1</a>).
-
 ### Setup Clonezilla Environment
+
+Once the backup is finished boot into the Clonezilla terminal. This can be done by selecting `Enter_Shell` when prompted.
+
+<img src="./Assets/Clonezilla_backup_step_1.png" width="85%" />
+
 By default Clonezilla will not have networking enabled. To enable networking run:
 
 ```
 sudo systemctl start NetworkManager
 ```
 
-If you are <i>not</i> on a wired connection run the following to connect to WIFI.
+If you are <i>not</i> on a wired connection run the following to setup a WIFI connection.
 
 ```
 nmtui
@@ -160,6 +163,8 @@ The following are examples of how one would setup their partitions to meet the r
 #### Example for DOS
 
 <img src="./Assets/compatible_dos_partition_scheme.png" width="100%" />
+
+Once you edit and/or confirm that your system is compatible <a href="#10-download">download</a> the script.
 
 ## 4.0: Recovery
 
