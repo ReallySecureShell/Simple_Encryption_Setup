@@ -40,7 +40,7 @@ A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the
 <b color=red>Before proceeding please visit the <a href="#compatible-partition-schemes">Compatible Partition Schemes</a> subsection to determine if your system is compatible before continuing.</b>
 
 ### Required Packages
-There are two required packages: initramfs-tools, and cryptsetup. Both are available in the default Ubuntu repositories. And it is assumed that most Ubuntu derivatives will also carry these packages.
+There are two required packages: initramfs-tools, and cryptsetup. Both are available in the default Ubuntu repositories. And it is assumed that most Ubuntu derivatives will also carry these packages. <b>You must install these packages on the target system <i>before</i> encrypting</b>.
 
     sudo apt update
     sudo apt install cryptsetup initramfs-tools
