@@ -1,4 +1,3 @@
-
 ## Description
 
 This script adds a basic encryption setup to your system <i>without</i> losing data.
