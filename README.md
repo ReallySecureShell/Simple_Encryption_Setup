@@ -93,7 +93,7 @@ Choose: -p choose (boot into the shell when finished)
 
 ### Setup Clonezilla Environment
 
-Once the backup is finished boot into the Clonezilla terminal. This can be done by selecting `Enter_Shell` when prompted.
+Once the backup is finished boot into the Clonezilla terminal. This can be done by selecting `Enter_shell` when prompted.
 
 <img src="./Assets/Clonezilla_backup_step_1.png" width="85%" />
 
@@ -103,7 +103,7 @@ By default Clonezilla will not have networking enabled. To enable networking run
 sudo systemctl start NetworkManager
 ```
 
-If you are <i>not</i> on a wired connection run the following to setup a WIFI connection.
+If you are <b>not</b> on a wired connection run the following to setup WIFI:
 
 ```
 nmtui
