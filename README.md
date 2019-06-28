@@ -30,7 +30,7 @@ This script adds a basic encryption setup to your system <i>without</i> losing d
 
 Or use the shortend URL: 
 
-    curl --location 'https://tinyurl.com/yxekdxwq' > encrypt.sh && chmod 744 encrypt.sh
+    curl --location 'https://tinyurl.com/y4ufmrcb' > encrypt.sh && chmod 744 encrypt.sh
 
 ## 2.0: Pre-Setup
 
