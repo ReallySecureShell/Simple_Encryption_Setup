@@ -26,7 +26,7 @@ This script adds a basic encryption setup to your system <i>without</i> losing d
 
 ## 1.0: Download
 
-    curl 'https://raw.githubusercontent.com/ReallySecureShell/Full_Disk_Encryption/master/main.sh' > encrypt.sh && chmod 744 encrypt.sh
+    curl 'https://raw.githubusercontent.com/ReallySecureShell/Simple_Encryption_Setup/master/main.sh' > encrypt.sh && chmod 744 encrypt.sh
 
 Or use the shortend URL: 
 
