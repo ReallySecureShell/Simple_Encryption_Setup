@@ -7,6 +7,7 @@ This script adds a basic encryption setup to your system <i>without</i> losing d
   * <a href="#required-packages">Required Packages</a>
   * <a href="#get-a-live-cd">Get a Live-CD</a>
   * <a href="#backup-your-system">Backup Your System</a>
+  * <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>
 * <a href="#30-limitations">3.0: Limitations</a>
   * <a href="#compatible-partition-schemes">Compatible Partition Schemes</a>
 * <a href="#40-in-depth-operation">4.0: In-Depth Operation</a>
@@ -25,6 +26,8 @@ This script adds a basic encryption setup to your system <i>without</i> losing d
   * <a href="#recover-without-a-backup">Recover WITHOUT a Backup</a>
 
 ## 1.0: Download
+
+Once in the Clonezilla terminal (see section <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>) you can download the script with either one of the following commands.
 
     curl 'https://raw.githubusercontent.com/ReallySecureShell/Simple_Encryption_Setup/master/main.sh' > encrypt.sh && chmod 744 encrypt.sh
 
@@ -98,6 +101,21 @@ Choose: -senc Not to encrypt the image
 
 Choose: -p choose (boot into the shell when finished)
 <img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
+
+Once the backup is finished boot into the Clonezilla terminal. This can be done by selecting `Enter_Shell` when prompted (see <a href="https://github.com/ReallySecureShell/Simple_Encryption_Setup/blob/master/Assets/Clonezilla_backup_step_1.png">Clonezilla_backup_step_1</a>).
+
+### Setup Clonezilla Environment
+By default Clonezilla will not have networking enabled. To enable networking run:
+
+```
+sudo systemctl start NetworkManager
+```
+
+If you are <i>not</i> on a wired connection it will be necessary to connect to a wireless network by running the following:
+
+```
+nmtui
+```
 
 ## 3.0: Limitations
 
