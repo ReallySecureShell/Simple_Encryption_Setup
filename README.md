@@ -111,7 +111,7 @@ By default Clonezilla will not have networking enabled. To enable networking run
 sudo systemctl start NetworkManager
 ```
 
-If you are <i>not</i> on a wired connection it will be necessary to connect to a wireless network by running the following:
+If you are <i>not</i> on a wired connection run the following to connect to WIFI.
 
 ```
 nmtui
