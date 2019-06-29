@@ -49,23 +49,6 @@ esac
 #Ask the user if they have installed cryptsetup on the target device before encrypting.
 #If cryptsetup is not installed on the device by the time of encryption, the device will fail to boot.
 #And will have to be recovered either from a backup, or by chrooting and installing the package.
-function FUNCT_post_initialization(){
-	read -p 'Have you installed cryptsetup and initramfs-tools on the target device? (Y/n): '	
-
-	case $REPLY in 
-	y|Y)
-		printf '[%bOK%b]   Proceeding with setup\n' $GREEN $NC >&2
-	;;
-	n|N)
-		printf '[%bFAIL%b] Install specified packages on target system before encrypting!\n' $RED $NC >&2
-		exit 1
-	;;
-	*)
-		FUNCT_post_initialization
-	;;
-	esac
-}
-FUNCT_post_initialization
 
 function FUNCT_populate_resume_array(){
 	#Define the resume array before populating.
@@ -108,6 +91,7 @@ function FUNCT_get_rootfs_mountpoint(){
 			if [[ ! -b $_initial_rootfs_mount ]]
 			then
 				printf '[%bWARN%b] Not a valid block device!\n' $RED $NC >&2
+				printf 'I: Specify FULL PATH to DEVICE\n'
 				__subfunct_check_if_valid_block_device
 			fi
 		}
@@ -120,32 +104,51 @@ function FUNCT_get_rootfs_mountpoint(){
 }
 FUNCT_get_rootfs_mountpoint
 
-#Check if /boot/grub/x86_64-efi exists, if so
-#determine the mountpoint of the EFI partition.
-#and verify that it is a valid efi partition.
-function FUNCT_detect_partition_table_type(){
-	#Temporarily mount the root filesystem to search for EFI.
-	printf '[%bINFO%b] Temporarily mounting %s to determine partition table type\n' $YELLOW $NC $_initial_rootfs_mount >&2
+function FUNCT_verify_required_packages(){
+	printf '[%bINFO%b] Mounting %s\n' $YELLOW $NC $_initial_rootfs_mount >&2
 
 	#Mount root partition into /mnt
-	if [[ `lsblk --output MOUNTPOINT $_initial_rootfs_mount | grep -P '^\/mnt$'` != '/mnt' ]]
+	if [[ `lsblk --output MOUNTPOINT $_initial_rootfs_mount | grep '^\/mnt$'` != '/mnt' ]]
 	then
 		sudo mount $_initial_rootfs_mount /mnt
 		case $? in
 		'0')
-			#Now check if /mnt/etc/fstab exists
-			if [ ! -e /mnt/etc/fstab ]
-			then
-				printf '[%bFAIL%b] Mounted successfully, but the partition does not contain an fstab file\n' $RED $NC >&2
-				sudo umount /mnt
-				exit 1
-			fi
+			printf '[%bINFO%b] Successfully mounted %s\n' $YELLOW $NC $_initial_rootfs_mount >&2
 		;;
 		*)
-			printf '[%bFAIL%b] Failed to mount partition\n' $RED $NC >&2
+			printf '[%bFAIL%b] Failed to mount %s\n' $RED $NC $_initial_rootfs_mount >&2
 			exit 1
 		;;
 		esac
+	fi
+
+	#Be verbose as to which packages are being checked.
+	for REQUIRED_PACKAGES in cryptsetup update-initramfs
+	do
+		#Search within the chroot for the required packeges.
+		sudo chroot /mnt which $REQUIRED_PACKAGES 1>/dev/null
+
+		if [ $? == '0' ]
+		then
+			printf '[%bOK%b]   %s is installed on %s\n' $GREEN $NC $REQUIRED_PACKAGES $_initial_rootfs_mount >&2
+		else
+			printf '[%bFAIL%b] %s is NOT installed on %s\n' $RED $NC $REQUIRED_PACKAGES $_initial_rootfs_mount >&2
+			sudo umount /mnt
+			exit 1
+		fi
+	done
+}
+FUNCT_verify_required_packages
+
+#Check if /boot/grub/x86_64-efi exists, if so
+#determine the mountpoint of the EFI partition.
+#and verify that it is a valid efi partition.
+function FUNCT_detect_partition_table_type(){
+	if [ ! -e /mnt/etc/fstab ]
+	then
+		printf '[%bFAIL%b] Mounted successfully, but the partition does not contain an fstab file\n' $RED $NC >&2
+		sudo umount /mnt
+		exit 1
 	fi
 
 	#Has grub been installed with EFI support?
@@ -226,6 +229,108 @@ function FUNCT_detect_partition_table_type(){
 }
 FUNCT_detect_partition_table_type
 
+#Autogenerate a GPG key-pair to use for encrypting/decrypting the LUKS passphrase.
+function FUNCT_create_gpg_key(){
+	#Generate GPG key if key does not already exist.
+	if [[ ! `gpg --list-keys | grep 'ReallySecureShell\@github\.com'` =~ ReallySecureShell\@github\.com ]]
+	then
+		#Create the random passphrase for the keypair.
+		__key_passphrase__=$(dd if=/dev/urandom bs=16 count=1 2>/dev/null | sha256sum | sed 's/\ -//')
+
+		printf '[%bINFO%b] Creating GPG keyfile template\n' $YELLOW $NC >&2
+		#Create keyfile template. This file is generated 
+		cat << __END_OF_KEY_TEMPLATE__ > key.template
+Key-Type: 1
+Key-Length: 4096
+Subkey-Type: 1
+Subkey-Length: 4096
+Name-Real: ReallySecureShell
+Name-Email: ReallySecureShell@github.com
+Expire-Date: 0
+Passphrase: $__key_passphrase__
+__END_OF_KEY_TEMPLATE__
+
+		printf '[%bINFO%b] Generating GPG key\n' $YELLOW $NC >&2
+		#Generate the gpg key
+		gpg --batch --gen-key key.template
+
+		#We are editing the GPG user configs because otherwise we will be given an ioctl error when trying to decrypt the LUKS passphrase.
+		printf '[%bINFO%b] Editing GPG user configuration\n' $YELLOW $NC >&2
+		cat << __EDIT_GPG.CONF__ > ~/.gnupg/gpg.conf
+use-agent
+pinentry-mode loopback
+__EDIT_GPG.CONF__
+
+		cat << __EDIT_GPG_AGENT__ > ~/.gnupg/gpg-agent.conf
+allow-loopback-pinentry
+__EDIT_GPG_AGENT__
+
+		printf '[%bINFO%b] Reloading GPG agent\n' $YELLOW $NC >&2
+		gpg-connect-agent <<< 'RELOADAGENT'
+
+	elif [[ `gpg --list-keys | grep 'ReallySecureShell\@github\.com'` =~ ReallySecureShell\@github\.com ]]
+	then
+		#If this condition is true then that means that the script already ran.
+		printf '[%bINFO%b] Skipping generation of GPG key. Key already exists\n' $YELLOW $NC >&2
+
+		#Attempt to obtain key password.	
+		if [ -e key.template ]
+		then
+			printf '[%bINFO%b] Obtaining key passphrase from key.template\n' $YELLOW $NC >&2
+
+			__key_passphrase__=$(sed -n '/Passphrase: /{
+			s/Passphrase: //
+			p
+			}' key.template)
+		else
+			printf '[%bERROR%b] key.template does not exist. Cannot obtain the password for the key\n' $RED $NC >&2
+			exit 1
+		fi
+	fi
+}
+FUNCT_create_gpg_key
+
+#Creates a temparary file in shared memory that stores the LUKS encryption password. 
+function FUNCT_get_LUKS_passphrase(){
+	printf '[%bINFO%b] Mounting tmpfs\n' $YELLOW $NC >&2
+	#Create a mapped memory file in /dev/shm
+	sudo mount -t tmpfs -o size=1k tmpfs /dev/shm
+
+	function __subfunct_ask_for_password(){
+		#Store the LUKS passphrase and verify passphrase to check if the user entered the passphrase correctly.
+		local ___LUKS_PASSPHRASE___=()
+		
+		#Ask user for their LUKS password. Verify it. Encrypt it and add it to /dev/shm/LUKS_passphrase.
+		read -sp 'Enter LUKS passphrase: ' ___LUKS_PASSPHRASE___[0]
+		#Print new-line character because read does not print a newline.
+		printf '\n'
+
+		#Verify passphrase
+		read -sp 'Verify passphrase: ' ___LUKS_PASSPHRASE___[1]
+		printf '\n'
+
+		#If the passphrases differ, recall the function.
+		if [[ ${___LUKS_PASSPHRASE___[0]} != ${___LUKS_PASSPHRASE___[1]} ]]
+		then
+			printf 'Invalid passphrase\n'
+			__subfunct_ask_for_password
+		else
+			printf '[%bINFO%b] Saving encrypted LUKS passphrase to /dev/shm/LUKS_PASSPHRASE.gpg\n' $YELLOW $NC >&2
+			#Encrypt LUKS passphrase and store it in /dev/shm/LUKS_Password.gpg
+			gpg --armor -er 'ReallySecureShell@github.com' --passphrase $__key_passphrase__ -o /dev/shm/LUKS_PASSPHRASE.gpg << __END_OF_PASSPHRASE__
+${___LUKS_PASSPHRASE___[0]}
+__END_OF_PASSPHRASE__
+		fi
+	}
+	__subfunct_ask_for_password
+}
+if [[ ! -e /dev/shm/LUKS_PASSPHRASE.gpg ]]
+then
+	FUNCT_get_LUKS_passphrase
+else
+	printf '[%bINFO%b] Already created LUKS passphrase\n' $YELLOW $NC >&2
+fi
+
 function FUNCT_initial_drive_encrypt(){
 	if [[ ${_resume_array[1]} != "e2fsck" ]]
 	then
@@ -247,52 +352,8 @@ function FUNCT_initial_drive_encrypt(){
 
 	if [[ ${_resume_array[3]} != "cryptsetup-reencrypt" ]]
 	then
-		#Define a local counter that stores the number of times CTRL-C was pressed.
-		local counter=0
-
-		#Sub-function helps better control the execution of the encryption command.
-		function __subfunct_handle_cryptsetup_input_errors(){
-			#Run the encryption command. Send standard error to the CRYPTSETUP_ERR.log file in the PWD.
-			sudo cryptsetup-reencrypt --new --type=luks1 --reduce-device-size 4096S $1 2> $2
-
-			#Set a trap for CTRL-C, increment by one if SIGINT was caught.
-			trap 'counter=$(($counter+1))' SIGINT
-
-			#Read the CRYPTSETUP_ERR.log file for its contents.
-			case $(cat $2) in
-				'Passphrases do not match.') #If both passwords don't match.
-					cat $2
-					__subfunct_handle_cryptsetup_input_errors $1 $2
-				;;
-				'Error reading passphrase from terminal.') #If the user invokes a CTRL-C.
-					#Define the IFS variable so a space isn't treated as a new line.
-					IFS=$'\n'
-
-					#If statements handle the dialog that is displayed when the user attempts to CTRL-C.
-					if [ $counter == '1' ]
-					then
-						printf '\nI: Next CTRL-C will exit script\n'
-					elif [ $counter == '2' ]
-					then
-						printf '\nI: Exiting\n'
-						rm $2
-						exit 1
-					fi
-					#Reset the IFS environment variable to default value.
-					unset IFS
-
-                                        #Print the error that was caught.
-                                        cat $2
-					__subfunct_handle_cryptsetup_input_errors $1 $2
-				;;
-				*) #If none of the above. Exit the sub-function.
-					rm $2
-					return 0
-				;;
-			esac
-		}
-		__subfunct_handle_cryptsetup_input_errors $1 'CRYPTSETUP_ERR.log'
-
+		#Add encryption to the specified drive.
+		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup-reencrypt --key-file=- --new --type=luks1 --reduce-device-size 4096S $1
 		echo "cryptsetup-reencrypt" >> RESUME.log
 	else
 		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[3]} >&2
@@ -314,10 +375,10 @@ function FUNCT_initial_drive_encrypt(){
 		esac
 
 		#Open the root filesystem as a mapped device.
-                sudo cryptsetup open $1 $_rootfs_mapper_name
-                echo "cryptsetup-open:$_rootfs_mapper_name" >> RESUME.log
+		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $1 $_rootfs_mapper_name
+		echo "cryptsetup-open:$_rootfs_mapper_name" >> RESUME.log
         else
-                printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[4]} >&2
+ 		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[4]} >&2
 		_rootfs_mapper_name=${_resume_array[4]##cryptsetup-open:}
         fi
 
@@ -340,7 +401,7 @@ function FUNCT_setup_mount(){
 	if [[ ! -b $1 ]]
 	then
 		printf '[%bINFO%b] %s not yet opened! Opening it now.\n' $YELLOW $NC $2 >&2
-		sudo cryptsetup open $2 $_rootfs_mapper_name
+		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $2 $_rootfs_mapper_name
 		if [[ -b $1 ]]
 		then
 			printf '[%bOK%b]   Successfully opened %s\n' $GREEN $NC $2 >&2
@@ -448,7 +509,7 @@ function FUNCT_write_unlock_script(){
 
 	#Add new keyfile to LUKS as an additional key.
 	printf '[%bINFO%b] Adding keyfile to %s\n' $YELLOW $NC $_initial_rootfs_mount >&2
-	sudo cryptsetup luksAddKey $_initial_rootfs_mount unlock.key
+	echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- luksAddKey $_initial_rootfs_mount unlock.key
 
 	#Move keyfile into /mnt/etc/initramfs-tools/scripts/, this will make sure the
 	#keyfile is picked-up by initramfs as a required file, and therefore
@@ -543,13 +604,42 @@ function FUNCT_create_encrypted_swap(){
 		printf '[%bINFO%b] Enter the location of the swap device\n' $YELLOW $NC >&2
 
 		#Ask the user for the swap partition to encrypt.
-        	read -p 'Partition containing the SWAP filesystem: ' _initial_swapfs_mount
+        	read -p 'Partition containing the SWAP filesystem [none]: '
 
-		if [[ -z `sudo chroot /mnt blkid -t TYPE="swap" $_initial_swapfs_mount` ]]
+		case $REPLY in
+			"")
+				function __subfunct_confirm_to_not_encrypt_swap(){
+					read -p 'Keep swap partition unencrypted? (y/n): '
+
+					case $REPLY in
+						y|Y)
+							abortCreatingEncryptedSwap='true'
+							return 0
+						;;
+						n|N)
+							__subfunct_prep_for_encrypting_swap
+						;;
+					esac
+				}
+				__subfunct_confirm_to_not_encrypt_swap
+
+				return 0
+			;;
+			*)
+				if [[ -z `sudo chroot /mnt blkid -t TYPE="swap" $REPLY` ]]
+                		then
+					printf '[%bWARN%b] Not a swap device!\n' $RED $NC >&2
+					__subfunct_prep_for_encrypting_swap
+				else
+					_initial_swapfs_mount=$REPLY
+				fi
+			;;
+		esac
+
+		if [[ ! -z $abortCreatingEncryptedSwap ]]
 		then
-			printf '[%bWARN%b] Not a swap device!\n' $RED $NC >&2
-			__subfunct_prep_for_encrypting_swap
-		fi 
+			return 0
+		fi
 
 		#Ask what the LABEL name for the swap device should be.
         	read -p 'Swap filesystem label name [swapfs]: '
@@ -564,6 +654,13 @@ function FUNCT_create_encrypted_swap(){
         	esac
 	}
 	__subfunct_prep_for_encrypting_swap
+
+	if [[ ! -z $abortCreatingEncryptedSwap ]]
+	then
+		printf '[%bNOTICE%b] Aborting the creation of the encrypted swap partition\n' $YELLOW $NC >&2
+		unset abortCreatingEncryptedSwap
+		return 0
+	fi
 
 	#Unmount all swap partitions
         printf '[%bINFO%b] Unmounting all mounted swap devices\n' $YELLOW $NC >&2
@@ -645,6 +742,10 @@ function FUNCT_cleanup(){
 	#Close the LUKS device
 	printf '[%bINFO%b] Closing mapped ROOT device: /dev/mapper/%s\n' $YELLOW $NC $_rootfs_mapper_name >&2
 	sudo cryptsetup close /dev/mapper/$_rootfs_mapper_name
+
+	#Remove Encrypted LUKS file from memory.
+	printf '[%bINFO%b] Shreding encrypted LUKS passphrase\n' $YELLOW $NC >&2
+	sudo shred /dev/shm/LUKS_PASSPHRASE.gpg
 
 	#End message
 	printf '[%bDONE%b] Cleanup complete. Exiting\n' $GREEN $NC >&2
