@@ -49,7 +49,6 @@ esac
 #Ask the user if they have installed cryptsetup on the target device before encrypting.
 #If cryptsetup is not installed on the device by the time of encryption, the device will fail to boot.
 #And will have to be recovered either from a backup, or by chrooting and installing the package.
-
 function FUNCT_populate_resume_array(){
 	#Define the resume array before populating.
 	_resume_array=()
@@ -104,6 +103,8 @@ function FUNCT_get_rootfs_mountpoint(){
 }
 FUNCT_get_rootfs_mountpoint
 
+#ONLY INITRAMFS-TOOLS are supported at the moment. But this function will stay as DRACUT support is planned.
+########################################################################################################
 function FUNCT_verify_required_packages(){
 	printf '[%bINFO%b] Mounting %s\n' $YELLOW $NC $_initial_rootfs_mount >&2
 
@@ -122,23 +123,65 @@ function FUNCT_verify_required_packages(){
 		esac
 	fi
 
+	#Keep track if initramfs-tools is found first. If not use dracut.
+	local SUCCESS=0
+
+	#Keep track if initramfs is not found.
+	local ERROR=0	
+
 	#Be verbose as to which packages are being checked.
-	for REQUIRED_PACKAGES in cryptsetup update-initramfs
+	for REQUIRED_PACKAGE in cryptsetup update-initramfs dracut
 	do
 		#Search within the chroot for the required packeges.
-		sudo chroot /mnt which $REQUIRED_PACKAGES 1>/dev/null
+		if [[ ! -z $(sudo chroot /mnt which $REQUIRED_PACKAGE) ]]
+		then #If found
+			printf '[%bOK%b]   %s is installed on %s\n' $GREEN $NC $REQUIRED_PACKAGE $_initial_rootfs_mount >&2
+			if [ $REQUIRED_PACKAGE == 'update-initramfs' ]
+			then
+				___INIT_BACKEND___='update-initramfs'
 
-		if [ $? == '0' ]
-		then
-			printf '[%bOK%b]   %s is installed on %s\n' $GREEN $NC $REQUIRED_PACKAGES $_initial_rootfs_mount >&2
-		else
-			printf '[%bFAIL%b] %s is NOT installed on %s\n' $RED $NC $REQUIRED_PACKAGES $_initial_rootfs_mount >&2
-			sudo umount /mnt
-			exit 1
+				SUCCESS=$(($SUCCESS+1))
+			elif [ $REQUIRED_PACKAGE == 'dracut' ]
+			then
+				#If 0 then update-initramfs tools was not found
+				if [ $SUCCESS == 0 ]
+				then
+					___INIT_BACKEND___='dracut'
+
+					printf '[%bINFO%b] Creating directories to store dracut configuration files\n' $YELLOW $NC >&2
+					#Pre-make the directories for dracut. These will be named the same as the initramfs-tools directory/sub-directories to make things simpler.
+					sudo chroot /mnt mkdir -p /etc/initramfs-tools/{conf.d,scripts,hooks}
+				fi
+			fi
+		else #If NOT found
+			printf '[%bWARN%b] %s is NOT installed on %s\n' $RED $NC $REQUIRED_PACKAGE $_initial_rootfs_mount >&2
+			#If cryptsetup is not installed
+			if [ $REQUIRED_PACKAGE == 'cryptsetup' ]
+			then
+				sudo umount /mnt
+				exit 1
+			#If update-initramfs is not found
+			elif [ $REQUIRED_PACKAGE == 'update-initramfs' ]
+			then
+				#Tell the dracut command that initramfs failed to be found.
+				ERROR=$(($ERROR+1))
+			#If dracut is not found
+			elif [ $REQUIRED_PACKAGE == 'dracut' ]
+			then
+				if [ $ERROR == 1 ]
+				then
+					printf '[%bFAIL%b] No compatible initramfs creation tools\n' $RED $NC >&2
+					sudo umount /mnt
+					exit 1
+				fi
+			fi
 		fi
 	done
+
+	printf '[%bINFO%b] Will use %s as the backend initramfs creation tool\n' $YELLOW $NC $___INIT_BACKEND___ >&2
 }
 FUNCT_verify_required_packages
+#########################################################################################################################################################
 
 #Check if /boot/grub/x86_64-efi exists, if so
 #determine the mountpoint of the EFI partition.
@@ -185,23 +228,11 @@ function FUNCT_detect_partition_table_type(){
 			printf '[%bINFO%b] Mounting potential EFI partition: %s\n' $YELLOW $NC $_uuid_of_efi_part >&2
 			sudo mount --uuid $_uuid_of_efi_part /mnt/boot/efi
 
-			#Check /mnt/boot/efi, basic check to see if the files in there exist or not.
-			local counter=0
-			for EFI_FILES in '/mnt/boot/efi/EFI/boot/BOOTX64.EFI' '/mnt/boot/efi/EFI/boot/fbx64.efi'
-			do
-				if [ -e $EFI_FILES ]
-				then
-					printf 'Verified existence of: %s\n' $EFI_FILES
-				else
-					printf '%s: Does not exist\n' $EFI_FILES
-					counter=$(($counter+1))
-				fi
-			done
-
-			#Did one or more critical EFI files go undiscovered?
-			if [[ $counter -gt '0' ]]
+			printf '[%bINFO%b] Checking if partition: %s is a valid EFI partition\n' $YELLOW $NC $_uuid_of_efi_part >&2
+			#Basic check to see if the partition contains EFI files.
+			if [[ -z `find /mnt/boot/efi/EFI/* -name "*.efi" | xargs -i file {} | grep 'EFI application'` ]]
 			then
-				printf '[%bWARN%b] %s: partition is deemed invalid do to above errors\n         Will use DOS instead\n' $RED $NC $_uuid_of_efi_part >&2
+				printf '[%bWARN%b] %s is invalid. No EFI files discovered on partition. DOS will be used instead\n' $RED $NC $_uuid_of_efi_part >&2
 				unset _uuid_of_efi_part
 			else
 				printf '[%bOK%b]   %s: is a valid EFI partition\n' $GREEN $NC $_uuid_of_efi_part >&2
@@ -232,7 +263,7 @@ FUNCT_detect_partition_table_type
 #Autogenerate a GPG key-pair to use for encrypting/decrypting the LUKS passphrase.
 function FUNCT_create_gpg_key(){
 	#Generate GPG key if key does not already exist.
-	if [[ ! `gpg --list-keys | grep 'ReallySecureShell\@github\.com'` =~ ReallySecureShell\@github\.com ]]
+	if [[ ! `gpg --quiet --list-keys | grep 'ReallySecureShell\@github\.com'` =~ ReallySecureShell\@github\.com ]]
 	then
 		#Create the random passphrase for the keypair.
 		__key_passphrase__=$(dd if=/dev/urandom bs=16 count=1 2>/dev/null | sha256sum | sed 's/\ -//')
@@ -252,7 +283,7 @@ __END_OF_KEY_TEMPLATE__
 
 		printf '[%bINFO%b] Generating GPG key\n' $YELLOW $NC >&2
 		#Generate the gpg key
-		gpg --batch --gen-key key.template
+		gpg --quiet --batch --gen-key key.template
 
 		#We are editing the GPG user configs because otherwise we will be given an ioctl error when trying to decrypt the LUKS passphrase.
 		printf '[%bINFO%b] Editing GPG user configuration\n' $YELLOW $NC >&2
@@ -268,7 +299,7 @@ __EDIT_GPG_AGENT__
 		printf '[%bINFO%b] Reloading GPG agent\n' $YELLOW $NC >&2
 		gpg-connect-agent <<< 'RELOADAGENT'
 
-	elif [[ `gpg --list-keys | grep 'ReallySecureShell\@github\.com'` =~ ReallySecureShell\@github\.com ]]
+	elif [[ `gpg --quiet --list-keys | grep 'ReallySecureShell\@github\.com'` =~ ReallySecureShell\@github\.com ]]
 	then
 		#If this condition is true then that means that the script already ran.
 		printf '[%bINFO%b] Skipping generation of GPG key. Key already exists\n' $YELLOW $NC >&2
@@ -317,7 +348,7 @@ function FUNCT_get_LUKS_passphrase(){
 		else
 			printf '[%bINFO%b] Saving encrypted LUKS passphrase to /dev/shm/LUKS_PASSPHRASE.gpg\n' $YELLOW $NC >&2
 			#Encrypt LUKS passphrase and store it in /dev/shm/LUKS_Password.gpg
-			gpg --armor -er 'ReallySecureShell@github.com' --passphrase $__key_passphrase__ -o /dev/shm/LUKS_PASSPHRASE.gpg << __END_OF_PASSPHRASE__
+			gpg --quiet --armor -er 'ReallySecureShell@github.com' --passphrase $__key_passphrase__ -o /dev/shm/LUKS_PASSPHRASE.gpg << __END_OF_PASSPHRASE__
 ${___LUKS_PASSPHRASE___[0]}
 __END_OF_PASSPHRASE__
 		fi
@@ -567,8 +598,41 @@ function FUNCT_modify_grub_configuration(){
 
 		#Install grub with EFI support
 		printf '[%bINFO%b] Installing grub with EFI support\n' $YELLOW $NC >&2
-		sudo chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --modules="part_gpt part_msdos" --recheck
-		sudo chroot /mnt grub-mkconfig -o /boot/efi/EFI/ubuntu/grub/grub.cfg
+		
+		function __subfunct_get_boot_directory_name(){
+			#Pre-create a script file that will be run in a chroot.
+			sudo touch /mnt/script.sh
+
+			#Change ownership of the file to the current user.
+			sudo chown $USER:$USER /mnt/script.sh
+
+			#Make the file executable
+			sudo chmod 744 /mnt/script.sh
+
+			#Write the script file
+			cat << __SCRIPT_FILE__ > /mnt/script.sh
+#!/bin/bash
+
+for __DISTRO__ in "\$(sed -n '/GRUB_DISTRIBUTOR/{p}' /etc/default/grub)"
+do
+	eval "\$__DISTRO__"
+	echo \$GRUB_DISTRIBUTOR
+done
+__SCRIPT_FILE__
+			#Execute the script file and place the output into DISTRIBUTOR.log
+			sudo chroot /mnt /bin/bash << __EXEC__
+./script.sh > DISTRIBUTOR.log
+__EXEC__
+
+			___DISTRIBUTOR_NAME___=$(sudo ls -1 /mnt/boot/efi/EFI | sudo grep -i "$(cat /mnt/DISTRIBUTOR.log)")
+		}
+		__subfunct_get_boot_directory_name
+
+		sudo chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --boot-directory=/boot/efi/EFI/$___DISTRIBUTOR_NAME___ --modules="part_gpt part_msdos" --recheck
+		sudo chroot /mnt grub-mkconfig -o /boot/efi/EFI/$___DISTRIBUTOR_NAME___/grub/grub.cfg
+
+		#Remove the script and associated log file from the / of the mounted filesystem.
+		sudo rm /mnt/{script.sh,DISTRIBUTOR.log}
 	else
 		#Remove partition numbers from the end of the root device.
         	local _grub_install_device=${_initial_rootfs_mount%%[0-9]}
