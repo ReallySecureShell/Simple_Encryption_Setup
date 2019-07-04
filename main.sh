@@ -183,17 +183,29 @@ function FUNCT_verify_required_packages(){
 FUNCT_verify_required_packages
 #########################################################################################################################################################
 
+#Read the mounted filesystems /etc/fstab to determine the location of all other partitions.
+function FUNCT_identify_all_partitions(){
+	printf '[%bINFO%b] Searching for partitions\n' $YELLOW $NC >&2
+
+	#Array containing discovered partitions.
+	___PARTITIONS___=()
+
+	local counter=0
+
+	for __PART__ in `awk '/^[^#]/{if ($3 == "swap" || $3 == "tmpfs" || $2 == "/boot" || $2 == "/boot/efi");else print $1":"$2":"$3;}' /mnt/etc/fstab`
+	do
+		___PARTITIONS___[$counter]=$__PART__
+		printf 'Discovered partition: %s\n' ${___PARTITIONS___[$counter]}
+
+		counter=$(($counter+1))
+	done
+}
+FUNCT_identify_all_partitions
+
 #Check if /boot/grub/x86_64-efi exists, if so
 #determine the mountpoint of the EFI partition.
 #and verify that it is a valid efi partition.
 function FUNCT_detect_partition_table_type(){
-	if [ ! -e /mnt/etc/fstab ]
-	then
-		printf '[%bFAIL%b] Mounted successfully, but the partition does not contain an fstab file\n' $RED $NC >&2
-		sudo umount /mnt
-		exit 1
-	fi
-
 	#Has grub been installed with EFI support?
 	if [ -d '/mnt/boot/grub/x86_64-efi' ]
 	then
@@ -391,23 +403,10 @@ function FUNCT_initial_drive_encrypt(){
 	fi
 
 	if [[ ! ${_resume_array[4]} =~ "cryptsetup-open" ]]
-        then
-                #Ask the user what the mapper name for the root filesystem should be.
-		read -p 'Root filesystem mapper name [rootfs]: '
-
-		#If input is left blank, then set the mapper name to 'rootfs'.
-		case $REPLY in
-        		"")
-                		_rootfs_mapper_name='rootfs'
-        		;;
-       			*)
-                		_rootfs_mapper_name=$REPLY
-        		;;
-		esac
-
+	then
 		#Open the root filesystem as a mapped device.
-		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $1 $_rootfs_mapper_name
-		echo "cryptsetup-open:$_rootfs_mapper_name" >> RESUME.log
+		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $1 $2
+		echo "cryptsetup-open:$2" >> RESUME.log
         else
  		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[4]} >&2
 		_rootfs_mapper_name=${_resume_array[4]##cryptsetup-open:}
@@ -416,13 +415,57 @@ function FUNCT_initial_drive_encrypt(){
 	if [[ ${_resume_array[5]} != "resize2fs_2" ]]
         then
                 #Size the partition back to max size.
-                sudo resize2fs /dev/mapper/$_rootfs_mapper_name
+                sudo resize2fs /dev/mapper/$2
                 echo "resize2fs_2" >> RESUME.log
         else
                 printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[5]} >&2
         fi
 }
-FUNCT_initial_drive_encrypt $_initial_rootfs_mount
+
+#The map name is the mountpoint minus the /'s.
+___MAPPER_NAMES___=()
+
+#The UUID or LVM mapper name that corrisponds to the device.
+___SOURCE_DEVICE___=()
+
+#The location of the LUKS drive so a keyfile can be added to it.
+__ADD_KEYFILE_TO_DEVICE__=()
+
+for __DISCOVERED_PARTITIONS__ in ${___PARTITIONS___[@]}
+do
+	_rootfs_mapper_name=$(awk -F : '{if ($2 == "/") gsub("\/", "root");else gsub("\/", "");print $2}' <<< $__DISCOVERED_PARTITIONS__ 2>/dev/null)
+
+	if [[ ! $__DISCOVERED_PARTITIONS__ =~ (.){8}\-((.){4}\-){3}(.){12} ]]
+	then
+		__DISCOVERED_PARTITIONS__=$(sed 's/\:.*//' <<< $__DISCOVERED_PARTITIONS__)
+
+		if [[ -b $__DISCOVERED_PARTITIONS__ ]]
+		then
+			___MAPPER_NAMES___+=($_rootfs_mapper_name)
+			___SOURCE_DEVICE___+=("$__DISCOVERED_PARTITIONS__")
+			__ADD_KEYFILE_TO_DEVICE__+=("$__DISCOVERED_PARTITIONS__")
+			FUNCT_initial_drive_encrypt $__DISCOVERED_PARTITIONS__ $_rootfs_mapper_name
+		else
+			printf '[%bWARN%b] The partition %s is not currently present\n' $RED $NC $__DISCOVERED_PARTITIONS__ >&2
+		fi
+	else
+		for __PART__ in "$(sed -E 's/.*\=|\:.*//g' <<< "$__DISCOVERED_PARTITIONS__" | xargs -i find /dev/disk/by-uuid/{} | xargs -i readlink {} | sed 's/^.*\//\/dev\//')"
+		do
+			if [[ -b $__PART__ ]]
+			then
+				___MAPPER_NAMES___+=($_rootfs_mapper_name)
+				___SOURCE_DEVICE___+=("UUID=$(sed -E 's/.*\=|\:.*//g' <<< $__DISCOVERED_PARTITIONS__)")
+				__ADD_KEYFILE_TO_DEVICE__+=($__PART__)
+				FUNCT_initial_drive_encrypt $__PART__ $_rootfs_mapper_name
+			else
+				printf '[%bWARN%b] The partition %s is not currently present\n' $RED $NC $__PART__ >&2
+			fi
+		done
+	fi
+done
+
+#set mapper name back to the string root. As that is the mapper name for the root partition.
+_rootfs_mapper_name='root'
 
 #Chroot into the encrypted filesystem.
 function FUNCT_setup_mount(){
@@ -468,24 +511,28 @@ function FUNCT_setup_mount(){
 			sudo mount --bind /$_bindings_for_chroot_jail /mnt/$_bindings_for_chroot_jail
 		fi
 	done
+
+	local counter=0
+
+	#Mount all other encrypted partitions to the mount point inside the mounted filesystem.
+	for __MAPPER__ in ${___MAPPER_NAMES___[@]}
+	do
+		for __MOUNTPOINT__ in ${___PARTITIONS___[$counter]}
+		do
+			__MOUNTPOINT__=$(awk -F ':' '{print $2}' <<< $__MOUNTPOINT__)
+			break
+		done
+		if [[ $__MAPPER__ != 'root' ]] && [[ $__MOUNTPOINT__ != '/' ]]
+		then
+			printf '[%bINFO%b] Mounting /dev/mapper/%s to /mnt%s\n' $YELLOW $NC $__MAPPER__ $__MOUNTPOINT__ >&2
+			sudo mount /dev/mapper/$__MAPPER__ /mnt$__MOUNTPOINT__
+		fi
+		counter=$(($counter+1))
+	done
 }
 FUNCT_setup_mount "/dev/mapper/$_rootfs_mapper_name" $_initial_rootfs_mount
 
-function FUNCT_add_rootfs_to_crypttab(){
-	#Get the UUID of the root filesystem.
-	#Note this is NOT the mapper UUID but
-	#the UUID of the actual encrypted
-	#partition.
-	local _sed_compatible_rootfs_mount_name=$(sed 's/\//\\\//g' <<< $_initial_rootfs_mount)
-
-	local _rootfs_uuid=$(sed -n '/'"$_sed_compatible_rootfs_mount_name"'/{
-        s/^.*:\ //
-        s/\ .*//
-        s/UUID\=//
-        s/[\"]//g
-        p
-        }' <<< `sudo chroot /mnt blkid`)
-
+function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 	#Ask the user if they want to allow TRIM operations for SSDs.
 	#If the user is using an HDD, they should say No (N).
 	#This is to know if the "discard" option should be set in crypttab.
@@ -510,14 +557,46 @@ function FUNCT_add_rootfs_to_crypttab(){
 	}
 	__subfunct_trim
 
-	#Now write the entry for the root filesystem in /etc/crypttab
-	local _crypttab_rootfs_entry="$_rootfs_mapper_name UUID=$_rootfs_uuid none luks$discard,keyscript=/etc/initramfs-tools/hooks/unlock.sh"
-
 	#Take own of the crypttab file so we can write to it.
 	sudo chown $USER:$USER /mnt/etc/crypttab
 
-	#Append the value of the above variable into /etc/crypttab
-	echo "$_crypttab_rootfs_entry" >> /mnt/etc/crypttab
+	counter=0
+
+	#Add all encrypted partitions to /mnt/etc/crypttab
+	for __MAPPER__ in ${___MAPPER_NAMES___[@]}
+	do
+		#USE add_keyfile variable. the UUIDs of the enties are for the mapped device instead of the actual encrypted device. 
+		for __SOURCE__ in $(sed -E 's/.*UUID/UUID/;s/^UUID\: /UUID=/' <<< $(sudo file -sL ${__ADD_KEYFILE_TO_DEVICE__[$counter]}))
+		do
+			break
+		done
+
+		if [[ $__MAPPER__ == 'root' ]]
+		then 
+			echo "$__MAPPER__ $__SOURCE__ none luks$discard,keyscript=/etc/initramfs-tools/hooks/unlock.sh" >> /mnt/etc/crypttab
+		else
+			echo "$__MAPPER__ $__SOURCE__ /etc/initramfs-tools/scripts/unlock.key luks$discard" >> /mnt/etc/crypttab
+		fi
+		counter=$(($counter+1))
+	done
+
+	#Modify /mnt/etc/fstab to point to the correct partitions.
+	local counter=0
+	for __FSTAB_ORIGINAL_ENTRY__ in ${___SOURCE_DEVICE___[@]}
+	do
+		for __MAPPER_NAME__ in ${___MAPPER_NAMES___[$counter]}
+		do
+			break
+		done
+
+		if [[ $__MAPPER_NAME__ != 'root' ]]
+		then
+			printf 'fstab: %s changed_to: /dev/mapper/%s\n' $__FSTAB_ORIGINAL_ENTRY__ $__MAPPER_NAME__ >&2
+
+			sudo sed -Ei 's/'"$__FSTAB_ORIGINAL_ENTRY__"'/\/dev\/mapper\/'"$__MAPPER_NAME__"'/' /mnt/etc/fstab
+		fi
+		counter=$(($counter+1))
+	done
 
 	#Set crypttab to be owned by root.
 	sudo chown root:root /mnt/etc/crypttab
@@ -527,7 +606,7 @@ function FUNCT_add_rootfs_to_crypttab(){
 }
 if [[ ${_resume_array[6]} != "crypttab_rootfs_entry" ]]
 then
-	FUNCT_add_rootfs_to_crypttab $_rootfs_mapper_name $_initial_rootfs_mount
+	FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab # $_rootfs_mapper_name $_initial_rootfs_mount
 	echo "crypttab_rootfs_entry" >> RESUME.log
 else
 	printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[6]} >&2
@@ -538,9 +617,13 @@ function FUNCT_write_unlock_script(){
 	printf '[%bINFO%b] Generating keyfile from /dev/urandom\n' $YELLOW $NC >&2
 	dd if=/dev/urandom count=4 bs=512 of=unlock.key
 
-	#Add new keyfile to LUKS as an additional key.
-	printf '[%bINFO%b] Adding keyfile to %s\n' $YELLOW $NC $_initial_rootfs_mount >&2
-	echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- luksAddKey $_initial_rootfs_mount unlock.key
+	#Add new keyfile to LUKS as an additional key to all encrypted partitions.
+
+	for __DEVICE__ in ${__ADD_KEYFILE_TO_DEVICE__[@]}
+	do
+		printf '[%bINFO%b] Adding keyfile to %s\n' $YELLOW $NC $__DEVICE__ >&2
+		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- luksAddKey $__DEVICE__ unlock.key
+	done
 
 	#Move keyfile into /mnt/etc/initramfs-tools/scripts/, this will make sure the
 	#keyfile is picked-up by initramfs as a required file, and therefore
@@ -793,6 +876,16 @@ FUNCT_update_changes_to_system
 
 #Unmount partitions
 function FUNCT_cleanup(){
+	for __MOUNTPOINT__ in ${___PARTITIONS___[@]}
+	do
+		__MOUNTPOINT__=$(awk -F ':' '{print $2}' <<< $__MOUNTPOINT__)
+		if [[ $__MOUNTPOINT__ != '/' ]]
+		then
+			printf '[%bINFO%b] Unmounting /mnt%s\n' $YELLOW $NC $__MOUNTPOINT__ >&2
+			sudo umount /mnt$__MOUNTPOINT__
+		fi
+	done
+
 	for UNMOUNT in /mnt/proc /mnt/sys /mnt/dev /mnt
 	do
 		if [ ! -z $_uuid_of_efi_part ] && [ $UNMOUNT == '/mnt/dev' ]
@@ -803,10 +896,13 @@ function FUNCT_cleanup(){
 		printf '[%bINFO%b] Unmounting %s\n' $YELLOW $NC $UNMOUNT >&2
 		sudo umount $UNMOUNT
 	done
-	#Close the LUKS device
-	printf '[%bINFO%b] Closing mapped ROOT device: /dev/mapper/%s\n' $YELLOW $NC $_rootfs_mapper_name >&2
-	sudo cryptsetup close /dev/mapper/$_rootfs_mapper_name
 
+	#Close the mapped LUKS partitions.
+	for __MAPPER__ in ${___MAPPER_NAMES___[@]}
+	do
+		printf '[%bINFO%b] Closing device: /dev/mapper/%s\n' $YELLOW $NC $__MAPPER__ >&2
+		sudo cryptsetup close /dev/mapper/$__MAPPER__
+	done
 	#Remove Encrypted LUKS file from memory.
 	printf '[%bINFO%b] Shreding encrypted LUKS passphrase\n' $YELLOW $NC >&2
 	sudo shred /dev/shm/LUKS_PASSPHRASE.gpg
