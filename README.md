@@ -9,7 +9,6 @@ This script adds a basic encryption setup to your system <i>without</i> losing d
   * <a href="#backup-your-system">Backup Your System</a>
   * <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>
 * <a href="#30-limitations">3.0: Limitations</a>
-  * <a href="#compatible-partition-schemes">Compatible Partition Schemes</a>
 * <a href="#40-recovery">4.0: Recovery</a>
   * <a href="#recover-from-backup">Recover From Backup</a>
   * <a href="#recover-without-a-backup">Recover WITHOUT a Backup</a>
@@ -28,8 +27,6 @@ Or use the shortend URL:
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
 A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
-
-<b color=red>Before proceeding please visit the <a href="#compatible-partition-schemes">Compatible Partition Schemes</a> subsection to determine if your system is compatible before continuing.</b>
 
 ### Required Packages
 There are two required packages: initramfs-tools, and cryptsetup. Both are available in the default Ubuntu repositories. And it is assumed that most Ubuntu derivatives will also carry these packages. <b>You must install these packages on the target system <i>before</i> encrypting</b>.
@@ -50,46 +47,7 @@ If you have a version of Clonezilla already, <b>make sure it's at least version 
 
 Now boot into the Clonezilla USB you've just made. <b>You will also need another drive (that isn't the one you're encrypting) to store the device image</b>.
 
-You'll be prompted to enter your language and keyboard layout. Before arriving at this screen:
-
-Choose: Start_Clonezilla
-<img src="./Assets/Clonezilla_backup_step_1.png" width="85%" />
-
-Choose: device-image
-<img src="./Assets/Clonezilla_backup_step_2.png" width="85%" />
-
-Choose: local_dev
-<img src="./Assets/Clonezilla_backup_step_3.png" width="85%" />
-
-Choose: The device thats not the drive you're encrypting
-<img src="./Assets/Clonezilla_backup_step_4.png" width="85%" />
-
-Choose: The directory where you want to store the image
-<img src="./Assets/Clonezilla_backup_step_5.png" width="85%" />
-
-Choose: Beginner
-<img src="./Assets/Clonezilla_backup_step_6.png" width="85%" />
-
-Choose: savedisk<br>
-<img src="./Assets/Clonezilla_backup_step_7.png" width="85%" />
-
-Optionally write a name for your image or leave it as the default.
-<img src="./Assets/Clonezilla_backup_step_8.png" width="85%" />
-
-Choose: The drive you want to backup
-<img src="./Assets/Clonezilla_backup_step_9.png" width="85%" />
-
-Choose: -sfsck<br>
-<img src="./Assets/Clonezilla_backup_step_10.png" width="85%" />
-
-Choose: Yes, check the saved image
-<img src="./Assets/Clonezilla_backup_step_11.png" width="85%" />
-
-Choose: -senc Not to encrypt the image
-<img src="./Assets/Clonezilla_backup_step_12.png" width="85%" />
-
-Choose: -p choose (boot into the shell when finished)
-<img src="./Assets/Clonezilla_backup_step_13.png" width="85%" />
+Instructions how to perform a backup with clonezilla can be found <a href="https://www.unixmen.com/backup-clone-disk-linux-using-clonezilla/">here</a>
 
 ### Setup Clonezilla Environment
 
@@ -113,58 +71,10 @@ nmtui
 
 | Drawbacks and Shortcomings |
 | --- |
-| Only works with i386 and x86_64 systems |
-| Incompatible with LVM (<a href="https://wiki.archlinux.org/index.php/Dm-crypt/Encrypting_an_entire_system#LUKS_on_LVM">although it is still possible to setup encryption on LVM</a>) | 
-| Only supports "basic" partitioning schemes (see section: <a href="#compatible-partition-schemes">Compatible Partition Schemes</a>) |
+| Only works with i386 and x86_64 systems | 
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
 | Requires initramfs-tools instead of the more common dracut utility (If initramfs-tools are not in the repository you'll have to install it from <a href="https://wiki.debian.org/initramfs-tools">source</a>) |
-
-### Compatible Partition Schemes
-
-The diagram that follows details known working partition schemes. If your partitions do not match any of the following there is NO GUARANTEE that the script will operate properly.
-
-The partition "ROOT" is <b>implicit</b> to all files/directories (except for the swapfile). For example, if you could have a separate `/home` partition, it would be explicitly specified.
-
-Each block specifies a whole drive. With ROOT, SWAPFILE/SWAP, and EFI representing partitions on those drives.
-
-Note: The first entry in each block is the <i>type</i> of partition table (EFI/DOS), i.e. not a partition.
-
-```
-1: ________________________       2: ________________________ 
-  |          EFI           |        |          EFI           |
-  |------------------------|        |------------------------|
-  |          ROOT          |        |          ROOT          |
-  |________________________|        |        SWAPFILE        |
-  |          SWAP          |        |________________________|
-  |________________________|        |                        |
-  |    EFI in /boot/efi    |        |    EFI in /boot/efi    |
-  |________________________|        |________________________|
-
-
-3: ________________________       4: ________________________ 
-  |          DOS           |        |          DOS           |
-  |------------------------|        |------------------------|
-  |                        |        |                        |
-  |          ROOT          |        |          ROOT          |
-  |                        |        |        SWAPFILE        |
-  |________________________|        |                        |
-  |          SWAP          |        |                        |
-  |________________________|        |________________________|
-
-```
-
-The following are examples of how one would setup their partitions to meet the requirements above.
-
-#### Example for EFI
-
-<img src="./Assets/compatible_efi_partition_scheme.png" width="100%" />
-
-#### Example for DOS
-
-<img src="./Assets/compatible_dos_partition_scheme.png" width="100%" />
-
-Once you edit and/or confirm that your system is compatible <a href="#10-download">download</a> the script.
 
 ## 4.0: Recovery
 
