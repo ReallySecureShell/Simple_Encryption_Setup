@@ -134,13 +134,14 @@ GRUB_PRELOAD_MODULES="luks cryptodisk"
 Now we need to reinstall GRUB. How GRUB is installed depends on the type of partition table (EFI/DOS).
 
 If installing for `i386-pc` note that the device you choose is NOT a partition. For example: if your `/` partition is located on /dev/sda1, then install GRUB on /dev/sda i.e. you simply remove the partition number from the device.
+```bash
+#For i386-pc
+grub-install --recheck /dev/<root_device>
+```
 
 If installing for `x86_64-efi` mount the EFI partition into `/boot/efi` before installing GRUB.
 
 ```bash
-#For i386-pc
-grub-install --recheck /dev/<root_device>
-
 #For x86_64-efi
 mount /dev/<EFI_partition> /boot/efi
 grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader=ubuntu --boot-directory=/boot/efi/EFI/ubuntu --recheck
