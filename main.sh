@@ -589,12 +589,14 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 			break
 		done
 
-		if [[ $__MAPPER_NAME__ != 'root' ]]
-		then
-			printf 'fstab: %s changed_to: /dev/mapper/%s\n' $__FSTAB_ORIGINAL_ENTRY__ $__MAPPER_NAME__ >&2
+		printf 'fstab: %s changed_to: /dev/mapper/%s\n' $__FSTAB_ORIGINAL_ENTRY__ $__MAPPER_NAME__ >&2
 
-			sudo sed -Ei 's/'"$__FSTAB_ORIGINAL_ENTRY__"'/\/dev\/mapper\/'"$__MAPPER_NAME__"'/' /mnt/etc/fstab
+		if [[ ! $__FSTAB_ORIGINAL_ENTRY__ =~ ^UUID\= ]]
+		then
+			__FSTAB_ORIGINAL_ENTRY__=$(sed 's/\//\\\//g' <<< "$__FSTAB_ORIGINAL_ENTRY__")
 		fi
+
+		sudo sed -Ei 's/'"$__FSTAB_ORIGINAL_ENTRY__"'/\/dev\/mapper\/'"$__MAPPER_NAME__"'/' /mnt/etc/fstab
 		counter=$(($counter+1))
 	done
 
@@ -606,7 +608,7 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 }
 if [[ ${_resume_array[6]} != "crypttab_rootfs_entry" ]]
 then
-	FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab # $_rootfs_mapper_name $_initial_rootfs_mount
+	FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab
 	echo "crypttab_rootfs_entry" >> RESUME.log
 else
 	printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[6]} >&2
@@ -618,7 +620,6 @@ function FUNCT_write_unlock_script(){
 	dd if=/dev/urandom count=4 bs=512 of=unlock.key
 
 	#Add new keyfile to LUKS as an additional key to all encrypted partitions.
-
 	for __DEVICE__ in ${__ADD_KEYFILE_TO_DEVICE__[@]}
 	do
 		printf '[%bINFO%b] Adding keyfile to %s\n' $YELLOW $NC $__DEVICE__ >&2
@@ -717,12 +718,19 @@ __EXEC__
 		#Remove the script and associated log file from the / of the mounted filesystem.
 		sudo rm /mnt/{script.sh,DISTRIBUTOR.log}
 	else
-		#Remove partition numbers from the end of the root device.
-        	local _grub_install_device=${_initial_rootfs_mount%%[0-9]}
+		if [[ `sed -E '/TYPE/d;/crypt/d' <<< $(lsblk --output TYPE $_initial_rootfs_mount)` == 'lvm' ]]
+		then
+			local _grub_install_device=$(sed -E 's/^  //;s/[0-9]+.*$//' <<< $(sudo chroot /mnt lvs --noheadings -o devices $_initial_rootfs_mount 2>/dev/null))
+			printf '[%bINFO%b] Installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
+			sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_install_device
+		else
+			#Remove partition numbers from the end of the root device.
+			local _grub_install_device=${_initial_rootfs_mount%%[0-9]}
 
-		#Install grub with i386 architecture support ONLY.
-        	printf '[%bINFO%b] Installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
-		sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_install_device
+			#Install grub with i386 architecture support ONLY.
+			printf '[%bINFO%b] Installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
+			sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_install_device
+		fi
 	fi
 }
 if [[ ${_resume_array[8]} != "grub_config" ]]
@@ -813,19 +821,43 @@ function FUNCT_create_encrypted_swap(){
         printf '[%bINFO%b] Unmounting all mounted swap devices\n' $YELLOW $NC >&2
         sudo chroot /mnt swapoff -a
 
-	#Create a blank filesystem 1M in size at the start of the swap partition, this is so we can set a stable name to the swap partition.
-	printf '[%bINFO%b] Creating blank ext2 filesystem at the start of %s\n' $YELLOW $NC $_initial_swapfs_mount >&2
-	sudo chroot /mnt mkfs.ext2 -L $_swapfs_label_name $_initial_swapfs_mount 1M <<< "y"
-
 	#Change ownership of /mnt/etc/crypttab
 	sudo chown $USER:$USER /mnt/etc/crypttab
 
-	#Add entry in crypttab for our encrypted swapfs.
-	printf '[%bINFO%b] Adding swap entry to /mnt/etc/crypttab\n' $YELLOW $NC >&2
-	echo "swap LABEL=$_swapfs_label_name /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /mnt/etc/crypttab
+	#If the resume file does not exist, create it.
+	if [ ! -e /mnt/etc/initramfs-tools/conf.d/resume ]
+	then
+		printf '[%bINFO%b] Creating resume file at /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
+		sudo chroot /mnt touch /etc/initramfs-tools/conf.d/resume
+	fi
 
-	#Change ownership back to root
-	sudo chown root:root /mnt/etc/crypttab
+	###########################################################
+	if [[ `sed '/TYPE/d' <<< $(lsblk --output TYPE $_initial_swapfs_mount)` == 'lvm' ]]
+	then
+		#If lvm then use the partition name for LVM.
+		printf '[%bINFO%b] Adding swap entry to /mnt/etc/crypttab\n' $YELLOW $NC >&2
+		echo "swap $_initial_swapfs_mount /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /mnt/etc/crypttab
+
+		sudo chown $USER:$USER /mnt/etc/initramfs-tools/conf.d/resume
+
+		printf '[%bINFO%b] Modifying /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
+		echo "RESUME=$_initial_swapfs_mount"
+
+		sudo chown root:root /mnt/etc/initramfs-tools/conf.d/resume
+	else
+		#Create a blank filesystem 1M in size at the start of the swap partition, this is so we can set a stable name to the swap partition.
+		printf '[%bINFO%b] Creating blank ext2 filesystem at the start of %s\n' $YELLOW $NC $_initial_swapfs_mount >&2
+		sudo chroot /mnt mkfs.ext2 -L $_swapfs_label_name $_initial_swapfs_mount 1M <<< "y"
+
+		#Add entry in crypttab for our encrypted swapfs.
+		printf '[%bINFO%b] Adding swap entry to /mnt/etc/crypttab\n' $YELLOW $NC >&2
+		echo "swap LABEL=$_swapfs_label_name /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /mnt/etc/crypttab
+
+		printf '[%bINFO%b] Modifying /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
+		sudo sed -i 's/.*/RESUME=LABEL='"$_swapfs_label_name"'/' /mnt/etc/initramfs-tools/conf.d/resume
+	fi
+
+	###########################################################
 
 	#Comment out all lines in /mnt/etc/fstab that has "swap" somewhere in the line.
 	printf '[%bINFO%b] Disabling swap entries in /mnt/etc/fstab\n' $YELLOW $NC >&2
@@ -841,17 +873,8 @@ function FUNCT_create_encrypted_swap(){
 	#Reset ownership on /mnt/etc/fstab
 	sudo chown root:root /mnt/etc/fstab
 
-	#If the resume file does not exist, create it.
-	if [ ! -e /mnt/etc/initramfs-tools/conf.d/resume ]
-	then
-		printf '[%bINFO%b] Creating resume file at /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
-		sudo chroot /mnt touch /etc/initramfs-tools/conf.d/resume
-	fi
-
-	#Edit the RESUME file found at /etc/initramfs-tools/conf.d/resume
-	#This is so the resume function will always point to our fixed-named swap partition.
-	printf '[%bINFO%b] Modifying /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
-	sudo sed -i 's/.*/RESUME=LABEL='"$_swapfs_label_name"'/' /mnt/etc/initramfs-tools/conf.d/resume
+	#Change ownership back to root
+	sudo chown root:root /mnt/etc/crypttab
 }
 if [[ ${_resume_array[9]} != "encrypt_swap" ]]
 then
