@@ -148,6 +148,9 @@ function FUNCT_verify_required_packages(){
 				then
 					___INIT_BACKEND___='dracut'
 
+					#Exit because there is no dracut support in the script yet.
+					exit 1
+
 					printf '[%bINFO%b] Creating directories to store dracut configuration files\n' $YELLOW $NC >&2
 					#Pre-make the directories for dracut. These will be named the same as the initramfs-tools directory/sub-directories to make things simpler.
 					sudo chroot /mnt mkdir -p /etc/initramfs-tools/{conf.d,scripts,hooks}
@@ -206,9 +209,11 @@ FUNCT_identify_all_partitions
 #determine the mountpoint of the EFI partition.
 #and verify that it is a valid efi partition.
 function FUNCT_detect_partition_table_type(){
-	#Has grub been installed with EFI support?
-	if [ -d '/mnt/boot/grub/x86_64-efi' ]
-	then
+	local __get_grub_architecture__=$(ls -1d /mnt/boot/grub/{x86_64-efi,i386-pc} 2>/dev/null)
+
+	case $__get_grub_architecture__ in
+	'/mnt/boot/grub/x86_64-efi')
+		#Has grub been installed with EFI support?
 		printf '[%bINFO%b] Grub reports being installed with EFI support. Verifying\n' $YELLOW $NC >&2
 
 		#Check /mnt/etc/fstab for /boot/efi
@@ -254,9 +259,16 @@ function FUNCT_detect_partition_table_type(){
 			printf '[%bINFO%b] Unmounting /mnt/boot/efi\n' $YELLOW $NC >&2
 			sudo umount /mnt/boot/efi
 		fi
-	else
+	;;
+	'/mnt/boot/grub/i386-pc')
 		printf '[%bINFO%b] Partition table type is DOS\n' $YELLOW $NC >&2
-	fi
+	;;
+	*)
+		printf '[%bFAIL%b] Unsupported GRUB architecture. Only i386-pc and x86_64-efi are supported!\n' $RED $NC >&2
+		printf 'Error from input: %s\n' $__get_grub_architecture__
+		exit 1
+	;;
+	esac
 
 	#Unmount the root partition
 	printf '[%bINFO%b] Detection finished, unmounting /mnt\n' $YELLOW $NC >&2
