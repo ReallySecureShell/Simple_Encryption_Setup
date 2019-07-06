@@ -61,7 +61,7 @@ By default Clonezilla will not have networking enabled. To enable networking run
 sudo systemctl start NetworkManager
 ```
 
-If you are <b>not</b> on a wired connection run the following to setup WIFI:
+If you are <b>not</b> on a wired connection use the following to setup WIFI:
 
 ```
 nmtui
@@ -71,7 +71,9 @@ nmtui
 
 | Drawbacks and Shortcomings |
 | --- |
-| Only works with i386 and x86_64 systems | 
+| Only works with i386 and x86_64 systems |
+| Incompatible all RAID variants (1,5,10...etc) |
+| Incompatible with <a href="https://linux.oracle.com/documentation/OL6/Red_Hat_Enterprise_Linux-6-Logical_Volume_Manager_Administration-en-US.pdf">LVM mirrors</a> (See Chapter 2. LVM components) |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
 | Requires initramfs-tools instead of the more common dracut utility (If initramfs-tools are not in the repository you'll have to install it from <a href="https://wiki.debian.org/initramfs-tools">source</a>) |
@@ -118,7 +120,57 @@ rm /etc/initramfs-tools/hooks/unlock.sh
 rm /etc/initramfs-tools/scripts/unlock.key
 ```
 
-Remove all the enteries in /etc/crypttab
+In /etc/crypttab record what UUID(s) go to which device! You will use this information to reconfigure your /etc/fstab in the next step.
+
+Then remove all the enteries in /etc/crypttab <b>except</b> the one for the SWAP partition (if present).
+
+```
+#Example of an /etc/crypttab configuration
+
+# <target name>	<source device>		<key file>	<options>
+root UUID=b65a6d7e-b3dc-470d-8647-c8e6e0d85d9b none luks,keyscript=/etc/initramfs-tools/hooks/unlock.sh
+home UUID=64dc8278-dc10-4c0c-a1f4-3f10f6abec8b /etc/initramfs-tools/scripts/unlock.key luks
+opt UUID=b70bd54e-b900-47b5-9d5b-1740b6ccac47 /etc/initramfs-tools/scripts/unlock.key luks
+var UUID=9751dab0-64c0-4192-8829-a7f74b62af53 /etc/initramfs-tools/scripts/unlock.key luks
+```
+
+Now remove the appropriate entries from crypttab.
+
+Using the information recorded in the previous step, reconfigure your /etc/fstab.
+
+<b>Before editing /etc/fstab</b>
+```
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+# / was on /dev/sda2 during installation
+/dev/mapper/root /              ext4    errors=remount-ro 0       1
+# /boot/efi was on /dev/sda1 during installation
+UUID=3F9B-6958  /boot/efi       vfat    umask=0077      0       1
+# /home was on /dev/sda3 during installation
+/dev/mapper/home /home          ext4    defaults        0       2
+# /opt was on /dev/sda5 during installation
+/dev/mapper/opt /opt            ext4    defaults        0       2
+# /var was on /dev/sda4 during installation
+/dev/mapper/var /var            ext4    defaults        0       2
+/swapfile       none            swap    sw              0       0
+```
+
+Replace the first column with the UUID recorded from crypttab.
+
+<b>After editing /etc/fstab</b>
+```
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+# / was on /dev/sda2 during installation
+UUID=b65a6d7e-b3dc-470d-8647-c8e6e0d85d9b /               ext4    errors=remount-ro 0       1
+# /boot/efi was on /dev/sda1 during installation
+UUID=3F9B-6958  /boot/efi       vfat    umask=0077      0       1
+# /home was on /dev/sda3 during installation
+UUID=64dc8278-dc10-4c0c-a1f4-3f10f6abec8b /home           ext4    defaults        0       2
+# /opt was on /dev/sda5 during installation
+UUID=b70bd54e-b900-47b5-9d5b-1740b6ccac47 /opt            ext4    defaults        0       2
+# /var was on /dev/sda4 during installation
+UUID=9751dab0-64c0-4192-8829-a7f74b62af53 /var            ext4    defaults        0       2
+/swapfile                                 none            swap    sw              0       0
+```
 
 Remove the following two lines in /etc/default/grub:
 
