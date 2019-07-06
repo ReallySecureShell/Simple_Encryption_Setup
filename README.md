@@ -8,12 +8,14 @@ This script adds a basic encryption setup to your system <i>without</i> losing d
   * <a href="#get-a-live-cd">Get a Live-CD</a>
   * <a href="#backup-your-system">Backup Your System</a>
   * <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>
-* <a href="#30-limitations">3.0: Limitations</a>
+* <a href="#30-drawbacks-and-shortcomings">3.0: Drawbacks and Shortcomings</a>
 * <a href="#40-recovery">4.0: Recovery</a>
   * <a href="#recover-from-backup">Recover From Backup</a>
   * <a href="#recover-without-a-backup">Recover WITHOUT a Backup</a>
 
 ## 1.0: Download
+
+<b>Please read the <a href="#30-drawbacks-and-shortcomings">Drawbacks and Shortcomings</a> section before using the program.</b>
 
 Once in the Clonezilla terminal (see section <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>) you can download the script with one of the following commands.
 
@@ -67,12 +69,12 @@ If you are <b>not</b> on a wired connection use the following to setup WIFI:
 nmtui
 ```
 
-## 3.0: Limitations
+## 3.0: Drawbacks and Shortcomings
 
-| Drawbacks and Shortcomings |
+| Things to note before using the program |
 | --- |
 | Only works with i386 and x86_64 systems |
-| Incompatible all RAID variants (1,5,10...etc) |
+| Incompatible with all RAID variants (1,5,10...etc) |
 | Incompatible with <a href="https://linux.oracle.com/documentation/OL6/Red_Hat_Enterprise_Linux-6-Logical_Volume_Manager_Administration-en-US.pdf">LVM mirrors</a> (See Chapter 2. LVM components) |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
@@ -91,30 +93,43 @@ Choose <b>restoredisk</b> when prompted with this screen:
 
 If a backup was not created you STILL have a chance at fully recovering your system.
 
-Boot back into Clonezilla and load into a terminal. Once you've done so run the below command.
-Doing so will remove all the encryption from the drive (including the LUKS headers).
+Boot back into Clonezilla and load into a terminal. Once you've done so you'll have to figure out what devices are encrypted. To do that run the following:
 
 ```bash
-sudo cryptsetup-reencrypt --decrypt /dev/<your_root_partition>
-```
+sudo cryptsetup open <your_root_partition> root
 
-After the operation is complete, mount the filesystem into `/mnt`.
+sudo mount /dev/mapper/root /mnt
 
-```bash
-sudo mount /dev/<your_root_partition> /mnt
-```
-
-Setup chroot environment by binding /sys, /dev, /proc into the mounted filesystem, then chroot into it.
-
-```bash
+#bind /proc, /sys, and /dev to the mounted filesystem.
 for i in proc sys dev;do sudo mount --bind /$i /mnt/$i;done
 
-#Now chroot into the filesystem
 sudo chroot /mnt
+
+#The encrypted partitions are of type "crypto_LUKS"
+blkid
 ```
 
-Remove initramfs unlock.sh and unlock.key. This is just for cleanup.
+Once you've written down all the encrypted devices unmount the partitions and close the LUKS device.
 
+```bash
+#Unmount the bindings
+sudo umount /mnt/{dev,sys,proc}
+
+#Unmount the opened LUKS device
+sudo umount /mnt
+
+#Close the LUKS device
+sudo cryptsetup close /dev/mapper/root
+```
+
+Now that we know what devices are encrypted, enter them one-by-one into the command below.
+```bash
+sudo cryptsetup-reencrypt --decrypt /dev/<crypt_device>
+```
+
+<b>Remount your root device by following the previous steps (minus the cryptsetup open command and the mount command will be the root partition NOT /dev/mapper/root)</b>
+
+Remove initramfs unlock.sh and unlock.key. This is just for cleanup.
 ```bash
 rm /etc/initramfs-tools/hooks/unlock.sh
 rm /etc/initramfs-tools/scripts/unlock.key
@@ -138,7 +153,7 @@ Now remove the appropriate entries from crypttab.
 
 Using the information recorded in the previous step, reconfigure your /etc/fstab.
 
-<b>Before editing /etc/fstab</b>
+<b>Before editing, /etc/fstab should look similar to this:</b>
 ```
 # <file system> <mount point>   <type>  <options>       <dump>  <pass>
 # / was on /dev/sda2 during installation
@@ -156,7 +171,7 @@ UUID=3F9B-6958  /boot/efi       vfat    umask=0077      0       1
 
 Replace the first column with the UUID recorded from crypttab.
 
-<b>After editing /etc/fstab</b>
+<b>After editing, /etc/fstab should look similar to this:</b>
 ```
 # <file system> <mount point>   <type>  <options>       <dump>  <pass>
 # / was on /dev/sda2 during installation
@@ -181,7 +196,7 @@ GRUB_PRELOAD_MODULES="luks cryptodisk"
 
 Now we need to reinstall GRUB. How GRUB is installed depends on the type of partition table (EFI/DOS).
 
-If installing for `i386-pc` note that the device you choose is NOT a partition. For example: if your `/` partition is located on /dev/sda1, then install GRUB on /dev/sda i.e. you simply remove the partition number from the device.
+If installing for `i386-pc` note that the device you choose is NOT a partition. Use `lsblk` to determine your root device.
 ```bash
 #For i386-pc
 grub-install --recheck /dev/<root_device>
