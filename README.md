@@ -135,7 +135,7 @@ rm /etc/initramfs-tools/hooks/unlock.sh
 rm /etc/initramfs-tools/scripts/unlock.key
 ```
 
-In /etc/crypttab record what UUID(s) go to which device! You will use this information to reconfigure your /etc/fstab in the next step.
+<b>In /etc/crypttab record what UUID(s) go to which device!</b> You will use this information to reconfigure your /etc/fstab in the next step.
 
 Then remove all the enteries in /etc/crypttab <b>except</b> the one for the SWAP partition (if present).
 
