@@ -4,7 +4,7 @@
 
 ## Description
 
-This script adds a basic encryption setup to your system <i>without</i> losing data.
+This script adds a basic encryption setup to your system <b>without losing data</b>.
 
 * <a href="#10-download">1.0: Download</a>
 * <a href="#20-pre-setup">2.0: Pre-Setup</a>
