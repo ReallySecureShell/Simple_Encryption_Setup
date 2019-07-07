@@ -80,6 +80,7 @@ nmtui
 | Things to note before using the program |
 | --- |
 | Only works with i386 and x86_64 systems |
+| Only systems using the GRUB bootloader are supported |
 | Not compatible with any type of RAID setup |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
