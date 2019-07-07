@@ -34,7 +34,7 @@ Or use the shortend URL:
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
 A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.<br>
 
-Also be sure to unplug/disable any device that you do not want encrypted. This only applies to devices listed in your /etc/fstab (such as an external drive).
+Also be sure to unplug/disable any device that you do not want encrypted. This only applies to devices listed in your /etc/fstab.
 
 ### Required Packages
 There are two required packages: initramfs-tools, and cryptsetup. Both are available in the default Ubuntu repositories. And it is assumed that most Ubuntu derivatives will also carry these packages. <b>You must install these packages on the target system <i>before</i> encrypting</b>.
@@ -74,6 +74,8 @@ If you are <b>not</b> on a wired connection use the following to setup WIFI:
 ```
 nmtui
 ```
+
+Once networking is up you can <a href="#10-download">download</a> the script.
 
 ## 3.0: Drawbacks and Shortcomings
 
