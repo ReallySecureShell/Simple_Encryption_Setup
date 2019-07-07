@@ -80,7 +80,7 @@ nmtui
 | Things to note before using the program |
 | --- |
 | Only works with i386 and x86_64 systems |
-| Most likely not compatible with any type of RAID (although RAID 1 might be alright) |
+| Not compatible with any type of RAID setup |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
 | Requires initramfs-tools instead of the more common dracut utility (If initramfs-tools are not in the repository you'll have to install it from <a href="https://wiki.debian.org/initramfs-tools">source</a>) |
