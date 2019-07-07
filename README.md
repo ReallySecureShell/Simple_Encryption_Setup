@@ -32,7 +32,9 @@ Or use the shortend URL:
 ## 2.0: Pre-Setup
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
-A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.
+A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.<br>
+
+Also be sure to unplug/disable any device that you do not want encrypted. This only applies to devices listed in your /etc/fstab (such as an external drive).
 
 ### Required Packages
 There are two required packages: initramfs-tools, and cryptsetup. Both are available in the default Ubuntu repositories. And it is assumed that most Ubuntu derivatives will also carry these packages. <b>You must install these packages on the target system <i>before</i> encrypting</b>.
