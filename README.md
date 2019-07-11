@@ -42,7 +42,7 @@ The package: <b>cryptsetup</b> is required. <b>You must install this package on 
     sudo apt update
     sudo apt install cryptsetup
 
-You must also be using either 
+You <b>must</b> also be using either 
 
     initramfs-tools
     or
@@ -98,7 +98,6 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 | No swap partition support for mkinitcpio (support will be added very soon!) |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
-| Limited to initramfs-tools and mkinitcpio for the generation of the initramfs |
 
 ## 4.0: Recovery
 
