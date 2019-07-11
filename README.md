@@ -37,10 +37,10 @@ A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the
 Also be sure to unplug/disable any device that you do not want encrypted. This only applies to devices listed in your /etc/fstab.
 
 ### Required Packages
-There are two required packages: initramfs-tools, and cryptsetup. Both are available in the default Ubuntu repositories. And it is assumed that most Ubuntu derivatives will also carry these packages. <b>You must install these packages on the target system <i>before</i> encrypting</b>.
+The package: <b>cryptsetup</b> is required. <b>You must install this package on the target system <i>before</i> encrypting</b>.
 
     sudo apt update
-    sudo apt install cryptsetup initramfs-tools
+    sudo apt install cryptsetup
 
 ### Get a Live-CD
 
@@ -86,7 +86,7 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 | Not compatible with any type of RAID setup |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
-| Requires initramfs-tools instead of the more common dracut utility (If initramfs-tools are not in the repository you'll have to install it from <a href="https://wiki.debian.org/initramfs-tools">source</a>) |
+| Limited to initramfs-tools and mkinitcpio for the generation of the initramfs |
 
 ## 4.0: Recovery
 
