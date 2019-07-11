@@ -97,7 +97,7 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 | "Destructive" to /etc/mkinitcpio.conf, where the line `HOOKS` is replaced with: `HOOKS="base udev autodetect keyboard keymap modconf block encrypt filesystems"` (will adjust for LVM by adding the `lvm2` hook between "block" and "encrypt") |
 | Not compatible with any type of RAID setup |
 | Disables the ability to use Hibernation mode |
-| Multiple partitions are supported, however it is unknown what effect a separate `/usr` partition will have on the configuration |
+| Multiple partitions are supported, however the `/usr` partition is not treated specially. This can cause the system to be unbootable |
 | No swap partition support for mkinitcpio (support will be added very soon!) |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
