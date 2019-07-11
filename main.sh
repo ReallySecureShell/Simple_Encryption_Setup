@@ -130,16 +130,20 @@ function FUNCT_verify_required_packages(){
 	local ERROR=0	
 
 	#Be verbose as to which packages are being checked.
-	for REQUIRED_PACKAGE in cryptsetup update-initramfs dracut
+	for REQUIRED_PACKAGE in cryptsetup update-initramfs mkinitcpio dracut
 	do
 		#Search within the chroot for the required packeges.
-		if [[ ! -z $(sudo chroot /mnt which $REQUIRED_PACKAGE) ]]
+		if [[ ! -z $(sudo chroot /mnt which $REQUIRED_PACKAGE 2>/dev/null) ]]
 		then #If found
 			printf '[%bOK%b]   %s is installed on %s\n' $GREEN $NC $REQUIRED_PACKAGE $_initial_rootfs_mount >&2
 			if [ $REQUIRED_PACKAGE == 'update-initramfs' ]
 			then
 				___INIT_BACKEND___='update-initramfs'
 
+				SUCCESS=$(($SUCCESS+1))
+			elif [ $REQUIRED_PACKAGE == 'mkinitcpio' ]
+			then
+				___INIT_BACKEND___='mkinitcpio'
 				SUCCESS=$(($SUCCESS+1))
 			elif [ $REQUIRED_PACKAGE == 'dracut' ]
 			then
@@ -149,7 +153,11 @@ function FUNCT_verify_required_packages(){
 					___INIT_BACKEND___='dracut'
 
 					#Exit because there is no dracut support in the script yet.
+					###########################################################################
+					printf '[%bFAIL%b] No dracut support. Exiting\n' $RED $NC >&2
+					sudo umount /mnt
 					exit 1
+					###########################################################################
 
 					printf '[%bINFO%b] Creating directories to store dracut configuration files\n' $YELLOW $NC >&2
 					#Pre-make the directories for dracut. These will be named the same as the initramfs-tools directory/sub-directories to make things simpler.
@@ -157,7 +165,7 @@ function FUNCT_verify_required_packages(){
 				fi
 			fi
 		else #If NOT found
-			printf '[%bWARN%b] %s is NOT installed on %s\n' $RED $NC $REQUIRED_PACKAGE $_initial_rootfs_mount >&2
+			printf '[%bWARN%b] %s is NOT installed on %s\n' $YELLOW $NC $REQUIRED_PACKAGE $_initial_rootfs_mount >&2
 			#If cryptsetup is not installed
 			if [ $REQUIRED_PACKAGE == 'cryptsetup' ]
 			then
@@ -168,12 +176,14 @@ function FUNCT_verify_required_packages(){
 			then
 				#Tell the dracut command that initramfs failed to be found.
 				ERROR=$(($ERROR+1))
-			#If dracut is not found
+			elif [ $REQUIRED_PACKAGE == 'mkinitcpio' ]
+			then
+				ERROR=$(($ERROR+1))
 			elif [ $REQUIRED_PACKAGE == 'dracut' ]
 			then
-				if [ $ERROR == 1 ]
+				if [[ $ERROR -ge 2 ]]
 				then
-					printf '[%bFAIL%b] No compatible initramfs creation tools\n' $RED $NC >&2
+					printf '[%bFAIL%b] No compatible initramfs creation tool found. Exiting\n' $RED $NC >&2
 					sudo umount /mnt
 					exit 1
 				fi
@@ -583,11 +593,23 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 			break
 		done
 
-		if [[ $__MAPPER__ == 'root' ]]
-		then 
-			echo "$__MAPPER__ $__SOURCE__ none luks$discard,keyscript=/etc/initramfs-tools/hooks/unlock.sh" >> /mnt/etc/crypttab
-		else
-			echo "$__MAPPER__ $__SOURCE__ /etc/initramfs-tools/scripts/unlock.key luks$discard" >> /mnt/etc/crypttab
+
+		if [ $___INIT_BACKEND___ == 'update-initramfs' ]
+		then
+			if [[ $__MAPPER__ == 'root' ]]
+			then 
+				echo "$__MAPPER__ $__SOURCE__ none luks$discard,keyscript=/etc/initramfs-tools/hooks/unlock.sh" >> /mnt/etc/crypttab
+			else
+				echo "$__MAPPER__ $__SOURCE__ /etc/initramfs-tools/scripts/unlock.key luks$discard" >> /mnt/etc/crypttab
+			fi
+		elif [ $___INIT_BACKEND___ == 'mkinitcpio' ]
+		then
+			if [[ $__MAPPER__ == 'root' ]]
+			then
+				echo "$__MAPPER__ $__SOURCE__ none luks$discard" >> /mnt/etc/crypttab
+			else
+				echo "$__MAPPER__ $__SOURCE__ /crypto_keyfile.bin luks$discard" >> /mnt/etc/crypttab
+			fi
 		fi
 		counter=$(($counter+1))
 	done
@@ -627,31 +649,45 @@ else
 fi
 
 function FUNCT_write_unlock_script(){
+	#Change the name of the keyfile based on the initramfs tool being used.
+	if [ $___INIT_BACKEND___ == 'update-initramfs' ]
+	then
+		local __keyfile_name='/mnt/etc/initramfs-tools/scripts/unlock.key'
+	elif [ $___INIT_BACKEND___ == 'mkinitcpio' ]
+	then
+		local __keyfile_name='/mnt/crypto_keyfile.bin'
+	fi
+
 	#Create key used for unlocking the root filesystem in initramfs.
 	printf '[%bINFO%b] Generating keyfile from /dev/urandom\n' $YELLOW $NC >&2
-	dd if=/dev/urandom count=4 bs=512 of=unlock.key
+	sudo touch $__keyfile_name
+	sudo chown $USER:$USER $__keyfile_name
+	dd if=/dev/urandom count=4 bs=512 | base64 > $__keyfile_name
 
 	#Add new keyfile to LUKS as an additional key to all encrypted partitions.
 	for __DEVICE__ in ${__ADD_KEYFILE_TO_DEVICE__[@]}
 	do
 		printf '[%bINFO%b] Adding keyfile to %s\n' $YELLOW $NC $__DEVICE__ >&2
-		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- luksAddKey $__DEVICE__ unlock.key
+		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- luksAddKey $__DEVICE__ $__keyfile_name
 	done
 
 	#Move keyfile into /mnt/etc/initramfs-tools/scripts/, this will make sure the
 	#keyfile is picked-up by initramfs as a required file, and therefore
 	#will be included in the initramfs image.
-	printf '[%bINFO%b] Moving keyfile into initramfs configuration\n' $YELLOW $NC >&2
-	sudo mv unlock.key /mnt/etc/initramfs-tools/scripts/
 
-	#Generate unlock.sh keyfile for initramfs.
-	printf '[%bINFO%b] Creating unlock.sh script for initramfs\n' $YELLOW $NC >&2
-	sudo touch /mnt/etc/initramfs-tools/hooks/unlock.sh
+	#If initramfs-tools is the init creation tool, then run the below operation.
+	if [ $___INIT_BACKEND___ == 'update-initramfs' ]
+	then
+		#Generate unlock.sh keyfile for initramfs.
+		printf '[%bINFO%b] Creating unlock.sh script for initramfs\n' $YELLOW $NC >&2
+		sudo touch /mnt/etc/initramfs-tools/hooks/unlock.sh
 
-	#Change ownership of /mnt/etc/initramfs-tools/hooks/unlock.sh
-	sudo chown $USER:$USER /mnt/etc/initramfs-tools/hooks/unlock.sh
+		#Change ownership of /mnt/etc/initramfs-tools/hooks/unlock.sh
+		sudo chown $USER:$USER /mnt/etc/initramfs-tools/hooks/unlock.sh
 
-	cat << _unlock_script_file_data > /mnt/etc/initramfs-tools/hooks/unlock.sh
+		#Create unlock script
+		printf '[%bINFO%b] Creating unlock script in /mnt/etc/initramfs-tools/hooks/unlock.sh\n' $YELLOW $NC >&2
+		cat << _unlock_script_file_data > /mnt/etc/initramfs-tools/hooks/unlock.sh
 #!/bin/sh
 
 cat /scripts/unlock.key
@@ -659,14 +695,23 @@ cat /scripts/unlock.key
 exit 0
 _unlock_script_file_data
 
-	#Set ownership for unlock.sh back to root and set unlock.key to be owned by root also.
-	sudo chown root:root /mnt/etc/initramfs-tools/hooks/unlock.sh
-	sudo chown root:root /mnt/etc/initramfs-tools/scripts/unlock.key
+		#Set ownership for unlock.sh back to root and set unlock.key to be owned by root also.
+		sudo chown root:root /mnt/etc/initramfs-tools/hooks/unlock.sh
 
-	#Set restrictive permissions on the keyscript and keyfile.
-	printf '[%bINFO%b] Applying restrictive permissions to the key and script files\n' $YELLOW $NC >&2
-	sudo chroot /mnt chmod 100 /etc/initramfs-tools/hooks/unlock.sh
-	sudo chroot /mnt chmod 400 /etc/initramfs-tools/scripts/unlock.key
+		#Set restrictive permissions on the keyscript and keyfile.
+		sudo chroot /mnt chmod 100 /etc/initramfs-tools/hooks/unlock.sh
+
+	#If using the mkinitcpio init-creation tool modify its config file found in /etc/mkinitcpio.conf to include the key file.
+	elif [ $___INIT_BACKEND___ == 'mkinitcpio' ]
+	then
+		#Add the keyfile into the mkinitcpio configuration file. Add the file as the first entry in the FILE field.
+		printf '[%bINFO%b] Adding entry for keyfile into /mnt/etc/mkinitcpio.conf\n' $YELLOW $NC >&2
+		sudo sed -Ei 's/^FILES=\"(.*)\"/FILES=\"\/crypto_keyfile.bin \1\"/g' /mnt/etc/mkinitcpio.conf
+	fi
+
+	sudo chown root:root $__keyfile_name
+	sudo chmod 400 $__keyfile_name
+	printf '[%bINFO%b] Restrictive permissions applied to generated files\n' $YELLOW $NC >&2
 }
 if [[ ${_resume_array[7]} != "unlock.sh" ]]
 then
@@ -682,6 +727,20 @@ function FUNCT_modify_grub_configuration(){
 
 	#Have grub preload the required modules for luks and cryptodisks.
 	sudo sed -Ei 's/GRUB_ENABLE_CRYPTODISK=y/&\nGRUB_PRELOAD_MODULES="luks cryptodisk"/' /mnt/etc/default/grub
+
+	#Modify the GRUB_CMDLINE_LINUX_DEFAULT entry if using the mkinitcpio creation tool.
+	if [ $___INIT_BACKEND___ == 'mkinitcpio' ]
+	then
+		#Get the UUID of the root partition.
+		local __ROOT_UUID__=$(sudo sed -En '/^root/{
+        	s/root UUID\=| none.*//g
+        	p
+		}' /mnt/etc/crypttab)
+
+		#Apply change to the /mnt/etc/default/grub file.
+		printf '[%bINFO%b] Editing the GRUB_CMDLINE_LINUX_DEFAULT line in /mnt/etc/default/grub\n       as mkinitcpio requires it.\n' $YELLOW $NC >&2
+		sudo sed -Ei 's/^GRUB_CMDLINE_LINUX_DEFAULT\=\"(.*)\"/GRUB_CMDLINE_LINUX_DEFAULT\=\"\1 cryptdevice=UUID='"$__ROOT_UUID__"':root root=\/dev\/mapper\/root\"/g' /mnt/etc/default/grub
+	fi
 
 	#Mount EFI partition if installing for EFI.
 	#And install grub with EFI.
@@ -734,14 +793,14 @@ __EXEC__
 		then
 			local _grub_install_device=$(sed -E 's/^  //;s/[0-9]+.*$//' <<< $(sudo chroot /mnt lvs --noheadings -o devices $_initial_rootfs_mount 2>/dev/null))
 			printf '[%bINFO%b] Installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
-			sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_install_device
+			sudo chroot /mnt grub-install --target=i386-pc --modules="part_gpt part_msdos" --recheck $_grub_install_device
 		else
 			#Remove partition numbers from the end of the root device.
 			local _grub_install_device=${_initial_rootfs_mount%%[0-9]}
 
 			#Install grub with i386 architecture support ONLY.
 			printf '[%bINFO%b] Installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
-			sudo chroot /mnt grub-install --modules="part_gpt part_msdos" --recheck $_grub_install_device
+			sudo chroot /mnt grub-install --target=i386-pc --modules="part_gpt part_msdos" --recheck $_grub_install_device
 		fi
 	fi
 }
@@ -868,7 +927,6 @@ function FUNCT_create_encrypted_swap(){
 		printf '[%bINFO%b] Modifying /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
 		sudo sed -i 's/.*/RESUME=LABEL='"$_swapfs_label_name"'/' /mnt/etc/initramfs-tools/conf.d/resume
 	fi
-
 	###########################################################
 
 	#Comment out all lines in /mnt/etc/fstab that has "swap" somewhere in the line.
@@ -902,10 +960,28 @@ function FUNCT_update_changes_to_system(){
 	sudo chroot /mnt update-grub
 
 	printf '[%bINFO%b] Updating all initramfs configurations.\n' $YELLOW $NC >&2
+	#Update initramfs using the update-initramfs tool.
+	if [ $___INIT_BACKEND___ == 'update-initramfs' ]
+	then
+		sudo chroot /mnt update-initramfs -c -k all
+		printf '[%bINFO%b] It is alright that the initramfs updater was not able to find the unlock.key file.\n       This is because the unlock.sh script contains the location of the keyfile relative\n       to the initramfs image and not the primary root filesystem.\n' $YELLOW $NC >&2
 
-	#Update all initramfs filesystems
-	sudo chroot /mnt update-initramfs -c -k all
-	printf '[%bINFO%b] It is alright that the initramfs updater was not able to find the unlock.key file.\n       This is because the unlock.sh script contains the location of the keyfile relative\n       to the initramfs image and not the primary root filesystem.\n' $YELLOW $NC >&2
+	#Edit the /mnt/etc/mkinitcpio.conf file to give initramfs LUKS support, then generate the initramfs.
+	elif [ $___INIT_BACKEND___ == 'mkinitcpio' ]
+	then
+		#Edit the /mnt/etc/mkinitcpio.conf file.
+		if [[ `sed -E '/TYPE/d;/crypt/d' <<< $(lsblk --output TYPE $_initial_rootfs_mount)` == 'lvm' ]]
+		then
+			sudo sed -i 's/^HOOKS.*/HOOKS=\"base udev autodetect keyboard keymap modconf block lvm2 encrypt filesystems\"/' /mnt/etc/mkinitcpio.conf
+		else
+			sudo sed -i 's/^HOOKS.*/HOOKS=\"base udev autodetect keyboard keymap modconf block encrypt filesystems\"/' /mnt/etc/mkinitcpio.conf
+		fi
+
+		for PRESET in `ls -1 /mnt/etc/mkinitcpio.d/ | sed -E 's/.*\/|\.preset//g'`
+		do
+			sudo chroot /mnt mkinitcpio -p $PRESET
+		done
+	fi
 }
 FUNCT_update_changes_to_system
 
