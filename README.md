@@ -57,6 +57,8 @@ Now boot into the Clonezilla USB you've just made. <b>You will also need another
 
 Instructions how to perform a backup with clonezilla can be found <a href="https://www.unixmen.com/backup-clone-disk-linux-using-clonezilla/">here</a>
 
+Additionally look in the `/Assets` directory to find pictures of (almost) every step needed to backup your system.
+
 ### Setup Clonezilla Environment
 
 Once the backup is finished boot into the Clonezilla terminal. This can be done by selecting `Enter_shell` when prompted.
