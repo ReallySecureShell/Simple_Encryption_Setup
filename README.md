@@ -96,6 +96,7 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 | Only systems using the GRUB bootloader are supported |
 | "Destructive" to /etc/mkinitcpio.conf, where the line `HOOKS` is replaced with: `HOOKS="base udev autodetect keyboard keymap modconf block encrypt filesystems"` (will adjust for LVM by adding the `lvm2` hook between "block" and "encrypt") |
 | Not compatible with any type of RAID setup |
+| Disables the ability to use Hibernation mode |
 | Multiple partitions are supported, however it is unknown what effect a separate `/usr` partition will have on the configuration |
 | No swap partition support for mkinitcpio (support will be added very soon!) |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
