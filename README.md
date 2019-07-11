@@ -94,6 +94,7 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 | Only works with i386 and x86_64 systems |
 | Advanced LVM setups (such as mirrors) are most likely going to break the script |
 | Only systems using the GRUB bootloader are supported |
+| "Destructive" to /etc/mkinitcpio.conf, where the line `HOOKS` is replaced with: `HOOKS="base udev autodetect keyboard keymap modconf block encrypt filesystems"` (will adjust for LVM by adding the `lvm2` hook between "block" and "encrypt") |
 | Not compatible with any type of RAID setup |
 | Multiple partitions are supported, however it is unknown what effect a separate `/usr` partition will have on the configuration |
 | No swap partition support for mkinitcpio (support will be added very soon!) |
