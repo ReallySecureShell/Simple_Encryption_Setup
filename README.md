@@ -42,6 +42,14 @@ The package: <b>cryptsetup</b> is required. <b>You must install this package on 
     sudo apt update
     sudo apt install cryptsetup
 
+You must also be using either 
+
+    initramfs-tools
+    or
+    mkinitcpio
+
+as your initramfs generation tool(s)
+
 ### Get a Live-CD
 
 <a href="https://mirrors.xtom.com/osdn//clonezilla/71030/clonezilla-live-2.6.1-25-amd64.iso">Download the Clonezilla ISO</a>
