@@ -92,6 +92,7 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 | Things to note before using the program |
 | --- |
 | Only works with i386 and x86_64 systems |
+| Advanced LVM setups (such as mirrors) are most likely going to break the script |
 | Only systems using the GRUB bootloader are supported |
 | Not compatible with any type of RAID setup |
 | Multiple partitions are supported, however it is unknown what effect a separate `/usr` partition will have on the configuration |
