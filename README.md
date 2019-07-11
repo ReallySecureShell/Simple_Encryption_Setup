@@ -84,6 +84,8 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 | Only works with i386 and x86_64 systems |
 | Only systems using the GRUB bootloader are supported |
 | Not compatible with any type of RAID setup |
+| Multiple partitions are supported, however it is unknown what effect a separate `/usr` partition will have on the configuration |
+| No swap partition support for mkinitcpio (support will be added very soon!) |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
 | Limited to initramfs-tools and mkinitcpio for the generation of the initramfs |
