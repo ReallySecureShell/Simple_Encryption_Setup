@@ -706,7 +706,7 @@ _unlock_script_file_data
 	then
 		#Add the keyfile into the mkinitcpio configuration file. Add the file as the first entry in the FILE field.
 		printf '[%bINFO%b] Adding entry for keyfile into /mnt/etc/mkinitcpio.conf\n' $YELLOW $NC >&2
-		sudo sed -Ei 's/^FILES=\"(.*)\"/FILES=\"\/crypto_keyfile.bin \1\"/g' /mnt/etc/mkinitcpio.conf
+		sudo sed -Ei 's/^FILES=[\"|\(](.*)[\"|\)]/FILES=\(\/crypto_keyfile.bin \1\)/g' /mnt/etc/mkinitcpio.conf
 	fi
 
 	sudo chown root:root $__keyfile_name
@@ -726,7 +726,7 @@ function FUNCT_modify_grub_configuration(){
 	sudo sed -Ei 's/GRUB_CMDLINE_LINUX="(.*?)\"/&\nGRUB_ENABLE_CRYPTODISK=y/' /mnt/etc/default/grub
 
 	#Have grub preload the required modules for luks and cryptodisks.
-	sudo sed -Ei 's/GRUB_ENABLE_CRYPTODISK=y/&\nGRUB_PRELOAD_MODULES="luks cryptodisk"/' /mnt/etc/default/grub
+	sudo sed -Ei 's/GRUB_ENABLE_CRYPTODISK=y/&\nGRUB_PRELOAD_MODULES="part_gpt part_msdos luks cryptodisk"/' /mnt/etc/default/grub
 
 	#Modify the GRUB_CMDLINE_LINUX_DEFAULT entry if using the mkinitcpio creation tool.
 	if [ $___INIT_BACKEND___ == 'mkinitcpio' ]
@@ -783,7 +783,7 @@ __EXEC__
 		}
 		__subfunct_get_boot_directory_name
 
-		sudo chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --boot-directory=/boot/efi/EFI/$___DISTRIBUTOR_NAME___ --modules="part_gpt part_msdos" --recheck
+		sudo chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --boot-directory=/boot/efi/EFI/$___DISTRIBUTOR_NAME___ --recheck
 		sudo chroot /mnt grub-mkconfig -o /boot/efi/EFI/$___DISTRIBUTOR_NAME___/grub/grub.cfg
 
 		#Remove the script and associated log file from the / of the mounted filesystem.
@@ -793,14 +793,14 @@ __EXEC__
 		then
 			local _grub_install_device=$(sed -E 's/^  //;s/[0-9]+.*$//' <<< $(sudo chroot /mnt lvs --noheadings -o devices $_initial_rootfs_mount 2>/dev/null))
 			printf '[%bINFO%b] Installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
-			sudo chroot /mnt grub-install --target=i386-pc --modules="part_gpt part_msdos" --recheck $_grub_install_device
+			sudo chroot /mnt grub-install --target=i386-pc --recheck $_grub_install_device
 		else
 			#Remove partition numbers from the end of the root device.
 			local _grub_install_device=${_initial_rootfs_mount%%[0-9]}
 
 			#Install grub with i386 architecture support ONLY.
 			printf '[%bINFO%b] Installing grub to %s\n' $YELLOW $NC $_grub_install_device >&2
-			sudo chroot /mnt grub-install --target=i386-pc --modules="part_gpt part_msdos" --recheck $_grub_install_device
+			sudo chroot /mnt grub-install --target=i386-pc --recheck $_grub_install_device
 		fi
 	fi
 }
