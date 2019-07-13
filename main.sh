@@ -295,65 +295,26 @@ function FUNCT_detect_partition_table_type(){
 FUNCT_detect_partition_table_type
 
 #Autogenerate a GPG key-pair to use for encrypting/decrypting the LUKS passphrase.
-function FUNCT_create_gpg_key(){
-	#Generate GPG key if key does not already exist.
-	if [[ ! `gpg --quiet --list-keys | grep 'ReallySecureShell\@github\.com'` =~ ReallySecureShell\@github\.com ]]
-	then
-		#Create the random passphrase for the keypair.
-		__key_passphrase__=$(dd if=/dev/urandom bs=16 count=1 2>/dev/null | sha256sum | sed 's/\ -//')
+function FUNCT_create_gpg_key_passphrase(){
+	#Create passphrase used by gpg for the rest of the script.
+	printf '[%bINFO%b] Creating GPG passphrase\n' $YELLOW $NC >&2
+	__key_passphrase__=$(dd if=/dev/urandom bs=16 count=1 2>/dev/null | sha256sum | sed 's/\ -//')
 
-		printf '[%bINFO%b] Creating GPG keyfile template\n' $YELLOW $NC >&2
-		#Create keyfile template. This file is generated 
-		cat << __END_OF_KEY_TEMPLATE__ > key.template
-Key-Type: 1
-Key-Length: 4096
-Subkey-Type: 1
-Subkey-Length: 4096
-Name-Real: ReallySecureShell
-Name-Email: ReallySecureShell@github.com
-Expire-Date: 0
-Passphrase: $__key_passphrase__
-__END_OF_KEY_TEMPLATE__
-
-		printf '[%bINFO%b] Generating GPG key\n' $YELLOW $NC >&2
-		#Generate the gpg key
-		gpg --quiet --batch --gen-key key.template
-
-		#We are editing the GPG user configs because otherwise we will be given an ioctl error when trying to decrypt the LUKS passphrase.
-		printf '[%bINFO%b] Editing GPG user configuration\n' $YELLOW $NC >&2
-		cat << __EDIT_GPG.CONF__ > ~/.gnupg/gpg.conf
+	#We are editing the GPG user configs because otherwise we will be given an ioctl error when trying to encrypt/decrypt the LUKS passphrase.
+	printf '[%bINFO%b] Editing GPG user configuration\n' $YELLOW $NC >&2
+	cat << __EDIT_GPG.CONF__ > ~/.gnupg/gpg.conf
 use-agent
 pinentry-mode loopback
 __EDIT_GPG.CONF__
 
-		cat << __EDIT_GPG_AGENT__ > ~/.gnupg/gpg-agent.conf
+	cat << __EDIT_GPG_AGENT__ > ~/.gnupg/gpg-agent.conf
 allow-loopback-pinentry
 __EDIT_GPG_AGENT__
 
-		printf '[%bINFO%b] Reloading GPG agent\n' $YELLOW $NC >&2
-		gpg-connect-agent <<< 'RELOADAGENT'
-
-	elif [[ `gpg --quiet --list-keys | grep 'ReallySecureShell\@github\.com'` =~ ReallySecureShell\@github\.com ]]
-	then
-		#If this condition is true then that means that the script already ran.
-		printf '[%bINFO%b] Skipping generation of GPG key. Key already exists\n' $YELLOW $NC >&2
-
-		#Attempt to obtain key password.	
-		if [ -e key.template ]
-		then
-			printf '[%bINFO%b] Obtaining key passphrase from key.template\n' $YELLOW $NC >&2
-
-			__key_passphrase__=$(sed -n '/Passphrase: /{
-			s/Passphrase: //
-			p
-			}' key.template)
-		else
-			printf '[%bERROR%b] key.template does not exist. Cannot obtain the password for the key\n' $RED $NC >&2
-			exit 1
-		fi
-	fi
+	printf '[%bINFO%b] Reloading GPG agent\n' $YELLOW $NC >&2
+	gpg-connect-agent <<< 'RELOADAGENT'
 }
-FUNCT_create_gpg_key
+FUNCT_create_gpg_key_passphrase
 
 #Creates a temparary file in shared memory that stores the LUKS encryption password. 
 function FUNCT_get_LUKS_passphrase(){
@@ -382,7 +343,7 @@ function FUNCT_get_LUKS_passphrase(){
 		else
 			printf '[%bINFO%b] Saving encrypted LUKS passphrase to /dev/shm/LUKS_PASSPHRASE.gpg\n' $YELLOW $NC >&2
 			#Encrypt LUKS passphrase and store it in /dev/shm/LUKS_Password.gpg
-			gpg --quiet --armor -er 'ReallySecureShell@github.com' --passphrase $__key_passphrase__ -o /dev/shm/LUKS_PASSPHRASE.gpg << __END_OF_PASSPHRASE__
+			gpg --quiet --cipher-algo aes256 --digest-algo sha512 -c -a --passphrase $__key_passphrase__ -o /dev/shm/LUKS_PASSPHRASE.gpg << __END_OF_PASSPHRASE__
 ${___LUKS_PASSPHRASE___[0]}
 __END_OF_PASSPHRASE__
 		fi
@@ -418,7 +379,7 @@ function FUNCT_initial_drive_encrypt(){
 	if [[ ${_resume_array[3]} != "cryptsetup-reencrypt" ]]
 	then
 		#Add encryption to the specified drive.
-		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup-reencrypt --key-file=- --new --type=luks1 --reduce-device-size 4096S $1
+		echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup-reencrypt --key-file=- --new --type=luks1 --reduce-device-size 4096S $1
 		echo "cryptsetup-reencrypt" >> RESUME.log
 	else
 		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[3]} >&2
@@ -427,21 +388,21 @@ function FUNCT_initial_drive_encrypt(){
 	if [[ ! ${_resume_array[4]} =~ "cryptsetup-open" ]]
 	then
 		#Open the root filesystem as a mapped device.
-		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $1 $2
+		echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $1 $2
 		echo "cryptsetup-open:$2" >> RESUME.log
-        else
+	else
  		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[4]} >&2
 		_rootfs_mapper_name=${_resume_array[4]##cryptsetup-open:}
-        fi
+	fi
 
 	if [[ ${_resume_array[5]} != "resize2fs_2" ]]
-        then
-                #Size the partition back to max size.
-                sudo resize2fs /dev/mapper/$2
-                echo "resize2fs_2" >> RESUME.log
-        else
-                printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[5]} >&2
-        fi
+	then
+		#Size the partition back to max size.
+		sudo resize2fs /dev/mapper/$2
+		echo "resize2fs_2" >> RESUME.log
+	else
+		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[5]} >&2
+	fi
 }
 
 #The map name is the mountpoint minus the /'s.
@@ -497,7 +458,7 @@ function FUNCT_setup_mount(){
 	if [[ ! -b $1 ]]
 	then
 		printf '[%bINFO%b] %s not yet opened! Opening it now.\n' $YELLOW $NC $2 >&2
-		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $2 $_rootfs_mapper_name
+		echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $2 $_rootfs_mapper_name
 		if [[ -b $1 ]]
 		then
 			printf '[%bOK%b]   Successfully opened %s\n' $GREEN $NC $2 >&2
@@ -582,9 +543,9 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 	#Take own of the crypttab file so we can write to it.
 	sudo chown $USER:$USER /mnt/etc/crypttab
 
-	counter=0
 
 	#Add all encrypted partitions to /mnt/etc/crypttab
+	counter=0
 	for __MAPPER__ in ${___MAPPER_NAMES___[@]}
 	do
 		#USE add_keyfile variable. the UUIDs of the enties are for the mapped device instead of the actual encrypted device. 
@@ -592,7 +553,6 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 		do
 			break
 		done
-
 
 		if [ $___INIT_BACKEND___ == 'update-initramfs' ]
 		then
@@ -618,13 +578,9 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 	local counter=0
 	for __FSTAB_ORIGINAL_ENTRY__ in ${___SOURCE_DEVICE___[@]}
 	do
-		for __MAPPER_NAME__ in ${___MAPPER_NAMES___[$counter]}
-		do
-			break
-		done
+		__MAPPER_NAME__=${___MAPPER_NAMES___[$counter]}
 
 		printf 'fstab: %s changed_to: /dev/mapper/%s\n' $__FSTAB_ORIGINAL_ENTRY__ $__MAPPER_NAME__ >&2
-
 		if [[ ! $__FSTAB_ORIGINAL_ENTRY__ =~ ^UUID\= ]]
 		then
 			__FSTAB_ORIGINAL_ENTRY__=$(sed 's/\//\\\//g' <<< "$__FSTAB_ORIGINAL_ENTRY__")
@@ -668,7 +624,7 @@ function FUNCT_write_unlock_script(){
 	for __DEVICE__ in ${__ADD_KEYFILE_TO_DEVICE__[@]}
 	do
 		printf '[%bINFO%b] Adding keyfile to %s\n' $YELLOW $NC $__DEVICE__ >&2
-		echo -n `gpg --quiet -dr ReallySecureShell@github.com --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- luksAddKey $__DEVICE__ $__keyfile_name
+		echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- luksAddKey $__DEVICE__ $__keyfile_name
 	done
 
 	#Move keyfile into /mnt/etc/initramfs-tools/scripts/, this will make sure the
