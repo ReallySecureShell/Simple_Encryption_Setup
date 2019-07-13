@@ -543,7 +543,6 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 	#Take own of the crypttab file so we can write to it.
 	sudo chown $USER:$USER /mnt/etc/crypttab
 
-
 	#Add all encrypted partitions to /mnt/etc/crypttab
 	counter=0
 	for __MAPPER__ in ${___MAPPER_NAMES___[@]}
@@ -626,10 +625,6 @@ function FUNCT_write_unlock_script(){
 		printf '[%bINFO%b] Adding keyfile to %s\n' $YELLOW $NC $__DEVICE__ >&2
 		echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- luksAddKey $__DEVICE__ $__keyfile_name
 	done
-
-	#Move keyfile into /mnt/etc/initramfs-tools/scripts/, this will make sure the
-	#keyfile is picked-up by initramfs as a required file, and therefore
-	#will be included in the initramfs image.
 
 	#If initramfs-tools is the init creation tool, then run the below operation.
 	if [ $___INIT_BACKEND___ == 'update-initramfs' ]
@@ -827,13 +822,13 @@ function FUNCT_create_encrypted_swap(){
         	read -p 'Swap filesystem label name [swapfs]: '
 
         	case $REPLY in
-                	"")
-                       		_swapfs_label_name='swapfs'
-                	;;
-                	*)
-                        	_swapfs_label_name=$REPLY
-                	;;
-        	esac
+			"")
+				_swapfs_label_name='swapfs'
+			;;
+			*)
+				_swapfs_label_name=$REPLY
+			;;
+		esac
 	}
 	__subfunct_prep_for_encrypting_swap
 
