@@ -12,14 +12,15 @@ This script uses cryptsetup to add encryption to all partitions defined in your 
   * <a href="#get-a-live-cd">Get a Live-CD</a>
   * <a href="#backup-your-system">Backup Your System</a>
   * <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>
-* <a href="#30-drawbacks-and-shortcomings">3.0: Drawbacks and Shortcomings</a>
-* <a href="#40-recovery">4.0: Recovery</a>
+* <a href="#30-running-the-script">3.0: Running the Script</a>
+* <a href="#40-drawbacks-and-shortcomings">4.0: Drawbacks and Shortcomings</a>
+* <a href="#50-recovery">5.0: Recovery</a>
   * <a href="#recover-from-backup">Recover From Backup</a>
   * <a href="#recover-without-a-backup">Recover WITHOUT a Backup</a>
 
 ## 1.0: Download
 
-<b>Please read the <a href="#30-drawbacks-and-shortcomings">Drawbacks and Shortcomings</a> section before using the program.</b>
+<b>Please read the <a href="#40-drawbacks-and-shortcomings">Drawbacks and Shortcomings</a> section before using the program.</b>
 
 Once in the Clonezilla terminal (see section <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>) you can download the script with one of the following commands.
 
@@ -87,7 +88,11 @@ nmtui
 
 Once networking is up you can <a href="#10-download">download</a> the script.
 
-## 3.0: Drawbacks and Shortcomings
+## 3.0: Running the Script
+
+![Output sample](./Assets/Run_example.gif)
+
+## 4.0: Drawbacks and Shortcomings
 
 | Things to note before using the program |
 | --- |
@@ -102,7 +107,7 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
 
-## 4.0: Recovery
+## 5.0: Recovery
 
 ### Recover From Backup
 If you have a backup, then restore it using Clonezilla. The steps to restore to a backup are nearly identical to making a backup. 
