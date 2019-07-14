@@ -53,7 +53,7 @@ You <b>must</b> also be using either
     or
     mkinitcpio
 
-as your initramfs generation tool(s)
+as your initramfs generation utility
 
 ### Get a Live-CD
 
