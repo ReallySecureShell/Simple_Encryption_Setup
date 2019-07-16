@@ -14,6 +14,7 @@ This script uses cryptsetup to add encryption to all partitions defined in your 
   * <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>
 * <a href="#30-running-the-script">3.0: Running the Script</a>
 * <a href="#40-drawbacks-and-shortcomings">4.0: Drawbacks and Shortcomings</a>
+  * <a href="#partition-schemes">Partition Schemes</a>
 * <a href="#50-recovery-deprecated">5.0: Recovery (deprecated)</a>
   * <a href="#recover-from-backup">Recover From Backup</a>
   * <a href="#recover-without-a-backup">Recover WITHOUT a Backup</a>
@@ -111,6 +112,91 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 | No swap partition support for mkinitcpio (support will be added very soon!) |
 | Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
+
+### Partition Schemes
+
+Below are known working partition setups. I want to make it clear that you DO NOT have to follow this partition scheme exactly. For example, you can have ROOT on any partition (sda1,sda2,sda3...etc) or Logical Volume (myGroupRoot,myRoot,Root...etc) same applies for the other partitions. Also you may notice there is no SWAP partition in the scheme, don't worry, encrypting SWAP is still supported just not depicted.
+
+You also <i>don't</i> need to have a separate `/home, /var, etc...` you just need a valid `/` partition.
+
+```
+  LEGEND (Without LVM)
++---------------------+
+|  WHAT IT STORES     |
+|                     |
+|                     |
+|  WHERE ITS MOUNTED  |
+|                     |
+|                     |
+|  WHAT PARTITION     |
++---------------------+
+
+      LEGEND (WITH LVM)
++---------------------------+
+|  WHAT IT STORES           |
+|                           |
+|  WHERE ITS MOUNTED        |
+|___________________________|
+|  LOGICAL VOLUME           |
+|___________________________|
+|                           |
+|  PHYSICAL VOLUME (Part.)  |
++---------------------------+
+
+                                          ----WITHOUT LVM----
+
+MBR Example Setup
++-------------------+--------------------+--------------------+
+|  Root Partition   |  Home Partition    |  Var Partition     |
+|                   |                    |                    |
+|                   |                    |                    |
+|  /                |  /home             |  /var              |
+|                   |                    |                    |
+|                   |                    |                    |
+|  /dev/sda1        |  /dev/sda2         |  /dev/sda3         |
++-------------------+--------------------+--------------------+
+
+EFI Example Setup
++------------------+-------------------+--------------------+--------------------+
+|  EFI Partition   |  Root Partition   |  Home Partition    |  Var Partition     |
+|                  |                   |                    |                    |
+|                  |                   |                    |                    |
+|  /boot/efi       |  /                |  /home             |  /var              |
+|                  |                   |                    |                    |
+|                  |                   |                    |                    |
+|  /dev/sda1       |  /dev/sda2        |  /dev/sda3         |  /dev/sda4         |
++------------------+-------------------+--------------------+--------------------+
+
+                                          ----WITH LVM----
+
+MBR Example Setup
++---------------------------+---------------------------+--------------------------+
+|  Root Partition           |  Home Partition           |  Var Partition           |
+|                           |                           |                          |
+|                           |                           |                          |
+|  /                        |  /home                    |  /var                    |
+|                           |                           |                          |
+|___________________________|___________________________|__________________________|
+|  /dev/mapper/myGroupRoot  |  /dev/mapper/myGroupHome  |  /dev/mapper/myGroupVar  |
+|___________________________|___________________________|__________________________|
+|                                                                                  |
+|                                  /dev/sda1                                       |
++----------------------------------------------------------------------------------+
+
+EFI Example Setup
++--------------------+---------------------------+---------------------------+--------------------------+
+|  EFI Partition     |  Root Partition           |  Home Partition           |  Var Partition           |
+|                    |                           |                           |                          |
+|                    |                           |                           |                          |
+|  /boot/efi         |  /                        |  /home                    |  /var                    |
+|                    |                           |                           |                          |
+|                    |___________________________|___________________________|__________________________|
+|                    |  /dev/mapper/myGroupRoot  |  /dev/mapper/myGroupHome  |  /dev/mapper/myGroupVar  |
+|                    |___________________________|___________________________|__________________________|
+|                    |                                                                                  |
+|  /dev/sda1         |                                  /dev/sda2                                       |
++--------------------+----------------------------------------------------------------------------------+
+```
 
 ## 5.0: Recovery (deprecated)
 
