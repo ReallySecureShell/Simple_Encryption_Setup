@@ -109,8 +109,8 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 | Not compatible with any type of RAID setup |
 | Disables the ability to use Hibernation mode |
 | Multiple partitions are supported, however the `/usr` partition is not treated specially. This can cause the system to be unbootable |
-| No swap partition support for mkinitcpio (support will be added very soon!) |
-| Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks | 
+| Vulnerable to <a href="https://en.wikipedia.org/wiki/Evil_maid_attack">Evil-Maid</a> attacks |
+| Does not properly secure the keyfile (used by initramfs for unlocking encrypted partitions) i.e. the keyfile is in plain-text |
 | Uses LUKS version 1 (<a href="https://savannah.gnu.org/bugs/?55093">because GRUB does not support</a> <a href="https://gitlab.com/cryptsetup/cryptsetup/blob/master/docs/v2.0.0-ReleaseNotes">LUKS version 2</a>) |
 
 ### Partition Schemes
