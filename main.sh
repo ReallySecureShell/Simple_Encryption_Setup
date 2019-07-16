@@ -720,37 +720,49 @@ function FUNCT_create_encrypted_swap(){
 	printf '[%bINFO%b] Adding swap entry to /mnt/etc/fstab\n' $YELLOW $NC >&2
 	echo "/dev/mapper/swap_$SWAP_INDEX none swap sw 0 0" >> /mnt/etc/fstab
 }
+
+#The purpose of the code below is for setting up swap automatically. It provides the information
+#needed to identify/modify which swap partitions are encrypted.
+###################################################################################################
+
+#Check if any swap partitions are available
 if [[ -z `sudo chroot /mnt blkid -t TYPE="swap"` ]]
 then
 	printf '[%bINFO%b] No swap filesystem(s) present\n' $YELLOW $NC >&2
 else
+	#This function has one purpose, to populate the __SWAP_FILESYSTEMS_ARRAY__. This will store ALL detectable swap partitions.
+	#The reason its in a function is for easier control later on.
 	function ___DISCOVER_SWAP_FILESYSTEMS___(){
 		__SWAP_FILESYSTEMS_ARRAY__=($(sudo chroot /mnt blkid -t TYPE="swap" -o device))
 	}
 	___DISCOVER_SWAP_FILESYSTEMS___
 
+	#Tell the user what swap partition will be encrypted. The partitions can be adjusted however and are not final.
 	printf 'Will encrypt the following SWAP devices:\n'
-
 	for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
 	do
 		echo $i
 	done
 
+	#Function for handeling editing (primarily) of the swap array. It provides options for the user.
 	function __subfunct_prep_for_encrypting_swap(){
 		read -p 'Swap configuration alright? (y)es (e)dit (s)how_all_swap (S)how_configured_swap (r)escan (a)bort: '
 
 		case $REPLY in
 			[yY])
+				#if array is NOT empty exit the function without setting anything
 				if [ ! -z $__SWAP_FILESYSTEMS_ARRAY__ ]
 				then
 					return 0
 
 				else
+					#set the abort variable. This occurs when the user edits the swap array and as a result, no valid swap devices get discovered.
 					abortCreatingEncryptedSwap='True'
 					return 0
 				fi
 			;;
 			[eE])
+				#Output the contents of the swap array into a file, then unset the swap array (since items will then be appended).
 				for __SWAP_DEVICE__ in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
 				do
 					echo "$__SWAP_DEVICE__" >> swap_devices
@@ -758,6 +770,7 @@ else
 				unset __SWAP_DEVICE__
 				unset __SWAP_FILESYSTEMS_ARRAY__
 
+				#Edit/add valid swap enteries
 				nano swap_devices
 
 				#Refresh the array of SWAP devices
@@ -784,10 +797,12 @@ else
 				__subfunct_prep_for_encrypting_swap
 			;;
 			's')
+				#Show all swap devices that are discoverable.
 				sudo chroot /mnt blkid -t TYPE="swap" -o device
 				__subfunct_prep_for_encrypting_swap
 			;;
 			'S')
+				#Show the current swap devices in the array. Generally this will be the same as output of 's' (the code above this one).
 				if [ ! -z ${__SWAP_FILESYSTEMS_ARRAY__[@]} ]
 				then
 					for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
@@ -800,6 +815,7 @@ else
 				__subfunct_prep_for_encrypting_swap
 			;;
 			'r')
+				#Recall the function that populates the array, show what was found, then recall the options menu.
 				___DISCOVER_SWAP_FILESYSTEMS___
 				for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
 				do
@@ -808,6 +824,7 @@ else
 				__subfunct_prep_for_encrypting_swap
 			;;
 			'a')
+				#Exit funtion and abort setup of swap devices.
 				abortCreatingEncryptedSwap='True'
 				return 0
 			;;
@@ -829,6 +846,7 @@ else
 		then
 			if [ ! -e /mnt/etc/initramfs-tools/conf.d/resume ]
 			then
+				#Sometimes the resume file does not exist, if so then it will be created.
 				printf '[%bINFO%b] Creating resume file at /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
 				sudo chroot /mnt touch /etc/initramfs-tools/conf.d/resume
 			fi
@@ -842,9 +860,16 @@ else
 		printf '[%bINFO%b] Disabling swap entries in /mnt/etc/fstab\n' $YELLOW $NC >&2
 		sudo sed -i 's/.*swap.*/#&/' /mnt/etc/fstab
 
+		#Stop the resume file from being constantly edited each time the for-loop runs. Only run once then DONE!
 		RESUME_PASSED=0
+
+		#Increase by 1 for each iteration. This handles the naming of the swap mapper name. Ex: swap_0, swap_1, swap_2, etc...
 		SWAP_INDEX=0
+
+		#Pretty much the same as the above variable, however it is ONLY used when setting the '_swapfs_label_name' variable (not run if swap device is a logical volume). Ex: swapfs_0, swapfs_1, swapfs_2, etc...
 		counter=0
+
+		#Call FUNCT_create_encrypted_swap for each item in the swap array.
 		for _initial_swapfs_mount in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
 		do
 			FUNCT_create_encrypted_swap
@@ -859,6 +884,7 @@ else
 		printf '[%bNOTICE%b] Aborting swap configuration\n' $YELLOW $NC >&2
 	fi
 fi
+###################################################################################################
 
 function FUNCT_update_changes_to_system(){
 	printf '[%bINFO%b] Applying changes to grub configuration.\n' $YELLOW $NC >&2
