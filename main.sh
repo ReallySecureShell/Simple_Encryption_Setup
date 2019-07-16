@@ -46,64 +46,26 @@ case $TERM in
 	;;
 esac
 
-#Ask the user if they have installed cryptsetup on the target device before encrypting.
-#If cryptsetup is not installed on the device by the time of encryption, the device will fail to boot.
-#And will have to be recovered either from a backup, or by chrooting and installing the package.
-function FUNCT_populate_resume_array(){
-	#Define the resume array before populating.
-	_resume_array=()
-
-	#Define a count variable that corrisponds to the
-	#number of iterations in the below while loop.
-	local _array_index=0
-
-	while read ___COMPLETED_INSTRUCTIONS___
-	do
-		#Now, populate the _resume_array array;
-		#using the _array_index variable to specify
-		#the index.
-		_resume_array[$_array_index]=$___COMPLETED_INSTRUCTIONS___
-
-		#Increment the _array_index variable by
-		#1 for every iteration.
-		_array_index=$(($_array_index+1))
-	done < RESUME.log
-}
-#Check if the RESUME.log file exists, if so call the above function.
-if [[ -e RESUME.log ]]
-then
-	FUNCT_populate_resume_array
-else
-	printf '[%bINFO%b] No resume log found! Will iterate entire program.\n' $YELLOW $NC >&2
-fi
-
 #Get the rootfs partition
 function FUNCT_get_rootfs_mountpoint(){
-	if [[ ! ${_resume_array[0]} =~ "ROOTFS_partition" ]]
-	then
-		#To help the user, run the lsblk command
-        	lsblk
+	#To help the user, run the lsblk command
+        lsblk
 
-		#Prompt the user for the partition containing the root filesystem.
-		function __subfunct_check_if_valid_block_device(){
-			read -p 'Partition containing the ROOT filesystem: ' _initial_rootfs_mount
-			if [[ ! -b $_initial_rootfs_mount ]]
-			then
-				printf '[%bWARN%b] Not a valid block device!\n' $RED $NC >&2
-				printf 'I: Specify FULL PATH to DEVICE\n'
-				__subfunct_check_if_valid_block_device
-			fi
-		}
-		__subfunct_check_if_valid_block_device
-		echo "ROOTFS_partition:$_initial_rootfs_mount" >> RESUME.log
-	else
-		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[0]} >&2
-		_initial_rootfs_mount=${_resume_array[0]##ROOTFS_partition:}
-	fi
+	#Prompt the user for the partition containing the root filesystem.
+	function __subfunct_check_if_valid_block_device(){
+		read -p 'Partition containing the ROOT filesystem: ' _initial_rootfs_mount
+		if [[ ! -b $_initial_rootfs_mount ]]
+		then
+			printf '[%bWARN%b] Not a valid block device!\n' $RED $NC >&2
+			printf 'I: Specify FULL PATH to DEVICE\n'
+			__subfunct_check_if_valid_block_device
+		fi
+	}
+	__subfunct_check_if_valid_block_device
 }
 FUNCT_get_rootfs_mountpoint
 
-#ONLY INITRAMFS-TOOLS are supported at the moment. But this function will stay as DRACUT support is planned.
+#ONLY INITRAMFS-TOOLS and mkinitcpio are supported at the moment. But this function will stay as DRACUT support is planned.
 ########################################################################################################
 function FUNCT_verify_required_packages(){
 	printf '[%bINFO%b] Mounting %s\n' $YELLOW $NC $_initial_rootfs_mount >&2
@@ -358,51 +320,20 @@ else
 fi
 
 function FUNCT_initial_drive_encrypt(){
-	if [[ ${_resume_array[1]} != "e2fsck" ]]
-	then
-		#Run e2fsck on the partition provided by the user
-		sudo e2fsck -fy $1
-		echo "e2fsck" >> RESUME.log
-	else
-		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[1]} >&2
-	fi
+	#Run e2fsck on whichever partition was discovered.
+	sudo e2fsck -fy $1
 
-	if [[ ${_resume_array[2]} != "resize2fs" ]]
-	then
-		#Then resize the disk
-		sudo resize2fs -M $1
-		echo "resize2fs" >> RESUME.log
-	else
-		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[2]} >&2
-	fi
+	#Then resize the disk
+	sudo resize2fs -M $1
 
-	if [[ ${_resume_array[3]} != "cryptsetup-reencrypt" ]]
-	then
-		#Add encryption to the specified drive.
-		echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup-reencrypt --key-file=- --new --type=luks1 --reduce-device-size 4096S $1
-		echo "cryptsetup-reencrypt" >> RESUME.log
-	else
-		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[3]} >&2
-	fi
+	#Add encryption to the block device.
+	echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup-reencrypt --key-file=- --new --type=luks1 --reduce-device-size 4096S $1
 
-	if [[ ! ${_resume_array[4]} =~ "cryptsetup-open" ]]
-	then
-		#Open the root filesystem as a mapped device.
-		echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $1 $2
-		echo "cryptsetup-open:$2" >> RESUME.log
-	else
- 		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[4]} >&2
-		_rootfs_mapper_name=${_resume_array[4]##cryptsetup-open:}
-	fi
+	#Open the filesystem as a mapped device.
+	echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $1 $2
 
-	if [[ ${_resume_array[5]} != "resize2fs_2" ]]
-	then
-		#Size the partition back to max size.
-		sudo resize2fs /dev/mapper/$2
-		echo "resize2fs_2" >> RESUME.log
-	else
-		printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[5]} >&2
-	fi
+	#Size filesystem back to max size.
+	sudo resize2fs /dev/mapper/$2
 }
 
 #The map name is the mountpoint minus the /'s.
@@ -595,13 +526,7 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 	#Unset the discard variable
 	unset discard
 }
-if [[ ${_resume_array[6]} != "crypttab_rootfs_entry" ]]
-then
-	FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab
-	echo "crypttab_rootfs_entry" >> RESUME.log
-else
-	printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[6]} >&2
-fi
+FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab
 
 function FUNCT_write_unlock_script(){
 	#Change the name of the keyfile based on the initramfs tool being used.
@@ -664,13 +589,7 @@ _unlock_script_file_data
 	sudo chmod 400 $__keyfile_name
 	printf '[%bINFO%b] Restrictive permissions applied to generated files\n' $YELLOW $NC >&2
 }
-if [[ ${_resume_array[7]} != "unlock.sh" ]]
-then
-        FUNCT_write_unlock_script
-        echo "unlock.sh" >> RESUME.log
-else
-        printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[7]} >&2
-fi
+FUNCT_write_unlock_script
 
 function FUNCT_modify_grub_configuration(){
 	#Enable cryptodisks for grub.
@@ -755,154 +674,190 @@ __EXEC__
 		fi
 	fi
 }
-if [[ ${_resume_array[8]} != "grub_config" ]]
-then
-        FUNCT_modify_grub_configuration
-        echo "grub_config" >> RESUME.log
-else
-        printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[8]} >&2
-fi
+FUNCT_modify_grub_configuration
 
 function FUNCT_create_encrypted_swap(){
-	#See if any SWAP devices are present before asking which one the user wants to encrypt.
-	if [[ -z `sudo chroot /mnt blkid -t TYPE="swap"` ]]
-	then
-		printf '[%bINFO%b] No swap filesystem(s) present\n' $YELLOW $NC >&2
-
-		#If no swap devices are present, exit function.
-		return 0
-	fi
-
-	#Help the user choose the swap partition.
-	sudo chroot /mnt blkid -t TYPE="swap"
-
-	function __subfunct_prep_for_encrypting_swap(){
-		#Tell the user they need to enter the path to the swap device.
-		printf '[%bINFO%b] Enter the location of the swap device\n' $YELLOW $NC >&2
-
-		#Ask the user for the swap partition to encrypt.
-        	read -p 'Partition containing the SWAP filesystem [none]: '
-
-		case $REPLY in
-			"")
-				function __subfunct_confirm_to_not_encrypt_swap(){
-					read -p 'Keep swap partition unencrypted? (y/n): '
-
-					case $REPLY in
-						y|Y)
-							abortCreatingEncryptedSwap='true'
-							return 0
-						;;
-						n|N)
-							__subfunct_prep_for_encrypting_swap
-						;;
-					esac
-				}
-				__subfunct_confirm_to_not_encrypt_swap
-
-				return 0
-			;;
-			*)
-				if [[ -z `sudo chroot /mnt blkid -t TYPE="swap" $REPLY` ]]
-                		then
-					printf '[%bWARN%b] Not a swap device!\n' $RED $NC >&2
-					__subfunct_prep_for_encrypting_swap
-				else
-					_initial_swapfs_mount=$REPLY
-				fi
-			;;
-		esac
-
-		if [[ ! -z $abortCreatingEncryptedSwap ]]
-		then
-			return 0
-		fi
-
-		#Ask what the LABEL name for the swap device should be.
-        	read -p 'Swap filesystem label name [swapfs]: '
-
-        	case $REPLY in
-			"")
-				_swapfs_label_name='swapfs'
-			;;
-			*)
-				_swapfs_label_name=$REPLY
-			;;
-		esac
-	}
-	__subfunct_prep_for_encrypting_swap
-
-	if [[ ! -z $abortCreatingEncryptedSwap ]]
-	then
-		printf '[%bNOTICE%b] Aborting the creation of the encrypted swap partition\n' $YELLOW $NC >&2
-		unset abortCreatingEncryptedSwap
-		return 0
-	fi
-
-	#Unmount all swap partitions
-        printf '[%bINFO%b] Unmounting all mounted swap devices\n' $YELLOW $NC >&2
-        sudo chroot /mnt swapoff -a
-
-	#Change ownership of /mnt/etc/crypttab
-	sudo chown $USER:$USER /mnt/etc/crypttab
-
-	#If the resume file does not exist, create it.
-	if [ ! -e /mnt/etc/initramfs-tools/conf.d/resume ]
-	then
-		printf '[%bINFO%b] Creating resume file at /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
-		sudo chroot /mnt touch /etc/initramfs-tools/conf.d/resume
-	fi
-
 	###########################################################
 	if [[ `sed '/TYPE/d' <<< $(lsblk --output TYPE $_initial_swapfs_mount)` == 'lvm' ]]
 	then
 		#If lvm then use the partition name for LVM.
 		printf '[%bINFO%b] Adding swap entry to /mnt/etc/crypttab\n' $YELLOW $NC >&2
-		echo "swap $_initial_swapfs_mount /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /mnt/etc/crypttab
+		echo "swap_$SWAP_INDEX $_initial_swapfs_mount /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /mnt/etc/crypttab
 
-		sudo chown $USER:$USER /mnt/etc/initramfs-tools/conf.d/resume
+		if [[ $RESUME_PASSED == '0' ]] && [[ $___INIT_BACKEND___ == 'update-initramfs' ]]
+		then
+			sudo chown $USER:$USER /mnt/etc/initramfs-tools/conf.d/resume
 
-		printf '[%bINFO%b] Modifying /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
-		echo "RESUME=$_initial_swapfs_mount"
+			printf '[%bINFO%b] Modifying /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
 
-		sudo chown root:root /mnt/etc/initramfs-tools/conf.d/resume
+			#Not really sure the purpose of this (as in its not doing anything), its appently been here for a bit without causing errors, but still...
+			echo "RESUME=$_initial_swapfs_mount"
+
+			sudo chown root:root /mnt/etc/initramfs-tools/conf.d/resume
+			RESUME_PASSED=$(($RESUME_PASSED+1))
+		fi
 	else
+		local _swapfs_label_name=swapfs_$counter
+
 		#Create a blank filesystem 1M in size at the start of the swap partition, this is so we can set a stable name to the swap partition.
 		printf '[%bINFO%b] Creating blank ext2 filesystem at the start of %s\n' $YELLOW $NC $_initial_swapfs_mount >&2
 		sudo chroot /mnt mkfs.ext2 -L $_swapfs_label_name $_initial_swapfs_mount 1M <<< "y"
 
 		#Add entry in crypttab for our encrypted swapfs.
 		printf '[%bINFO%b] Adding swap entry to /mnt/etc/crypttab\n' $YELLOW $NC >&2
-		echo "swap LABEL=$_swapfs_label_name /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /mnt/etc/crypttab
+		echo "swap_$SWAP_INDEX LABEL=$_swapfs_label_name /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /mnt/etc/crypttab
 
-		printf '[%bINFO%b] Modifying /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
-		sudo sed -i 's/.*/RESUME=LABEL='"$_swapfs_label_name"'/' /mnt/etc/initramfs-tools/conf.d/resume
+		if [[ $RESUME_PASSED == '0' ]] && [[ $___INIT_BACKEND___ == 'update-initramfs' ]]
+		then
+			printf '[%bINFO%b] Modifying /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
+			sudo sed -i 's/.*/RESUME=LABEL='"$_swapfs_label_name"'/' /mnt/etc/initramfs-tools/conf.d/resume
+			RESUME_PASSED=$(($RESUME_PASSED+1))
+		fi
 	fi
-	###########################################################
-
-	#Comment out all lines in /mnt/etc/fstab that has "swap" somewhere in the line.
-	printf '[%bINFO%b] Disabling swap entries in /mnt/etc/fstab\n' $YELLOW $NC >&2
-	sudo sed -i 's/.*swap.*/#&/' /mnt/etc/fstab
-
-	#Change ownership of /mnt/etc/fstab
-	sudo chown $USER:$USER /mnt/etc/fstab
+	##########################################################
 
 	#Append new swapfs entry into /mnt/etc/fstab
 	printf '[%bINFO%b] Adding swap entry to /mnt/etc/fstab\n' $YELLOW $NC >&2
-	echo "/dev/mapper/swap none swap sw 0 0" >> /mnt/etc/fstab
-
-	#Reset ownership on /mnt/etc/fstab
-	sudo chown root:root /mnt/etc/fstab
-
-	#Change ownership back to root
-	sudo chown root:root /mnt/etc/crypttab
+	echo "/dev/mapper/swap_$SWAP_INDEX none swap sw 0 0" >> /mnt/etc/fstab
 }
-if [[ ${_resume_array[9]} != "encrypt_swap" ]]
+if [[ -z `sudo chroot /mnt blkid -t TYPE="swap"` ]]
 then
-	FUNCT_create_encrypted_swap
-	echo "encrypt_swap" >> RESUME.log
+	printf '[%bINFO%b] No swap filesystem(s) present\n' $YELLOW $NC >&2
 else
-        printf '[%bINFO%b] The %s command was already run! Skipping.\n' $YELLOW $NC ${_resume_array[9]} >&2
+	function ___DISCOVER_SWAP_FILESYSTEMS___(){
+		__SWAP_FILESYSTEMS_ARRAY__=($(sudo chroot /mnt blkid -t TYPE="swap" -o device))
+	}
+	___DISCOVER_SWAP_FILESYSTEMS___
+
+	printf 'Will encrypt the following SWAP devices:\n'
+
+	for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
+	do
+		echo $i
+	done
+
+	function __subfunct_prep_for_encrypting_swap(){
+		read -p 'Swap configuration alright? (y)es (e)dit (s)how_all_swap (S)how_configured_swap (r)escan (a)bort: '
+
+		case $REPLY in
+			[yY])
+				if [ ! -z $__SWAP_FILESYSTEMS_ARRAY__ ]
+				then
+					return 0
+
+				else
+					abortCreatingEncryptedSwap='True'
+					return 0
+				fi
+			;;
+			[eE])
+				for __SWAP_DEVICE__ in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
+				do
+					echo "$__SWAP_DEVICE__" >> swap_devices
+				done
+				unset __SWAP_DEVICE__
+				unset __SWAP_FILESYSTEMS_ARRAY__
+
+				nano swap_devices
+
+				#Refresh the array of SWAP devices
+				counter=0
+				while read __SWAP_DEVICE__
+				do
+					if [[ ! -z `sudo chroot /mnt blkid -t TYPE="swap" -o device $__SWAP_DEVICE__` ]]
+					then
+						__SWAP_FILESYSTEMS_ARRAY__[$counter]+=$__SWAP_DEVICE__
+						counter=$(($counter+1))
+					else
+						printf '%s : Not a SWAP device!\n' $__SWAP_DEVICE__
+					fi
+				done < swap_devices
+
+				unset counter
+				rm swap_devices
+
+				printf 'New SWAP device(s)\n'
+				for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
+				do
+					echo $i
+				done
+				__subfunct_prep_for_encrypting_swap
+			;;
+			's')
+				sudo chroot /mnt blkid -t TYPE="swap" -o device
+				__subfunct_prep_for_encrypting_swap
+			;;
+			'S')
+				if [ ! -z ${__SWAP_FILESYSTEMS_ARRAY__[@]} ]
+				then
+					for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
+					do
+						echo $i
+					done
+				else
+					printf 'No swap devices configured. If you believe this is a mistake\nrun (r)escan to re-populate the swap enteries.\n'
+				fi
+				__subfunct_prep_for_encrypting_swap
+			;;
+			'r')
+				___DISCOVER_SWAP_FILESYSTEMS___
+				for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
+				do
+					echo $i
+				done
+				__subfunct_prep_for_encrypting_swap
+			;;
+			'a')
+				abortCreatingEncryptedSwap='True'
+				return 0
+			;;
+			*)
+				printf 'Not an option!\n'
+				__subfunct_prep_for_encrypting_swap
+			;;
+		esac
+	}
+	__subfunct_prep_for_encrypting_swap
+
+	if [ -z $abortCreatingEncryptedSwap ]
+	then
+		#Unmount all swap partitions
+        	printf '[%bINFO%b] Unmounting all mounted swap devices\n' $YELLOW $NC >&2
+        	sudo chroot /mnt swapoff -a
+
+		if [ $___INIT_BACKEND___ == 'update-initramfs' ]
+		then
+			if [ ! -e /mnt/etc/initramfs-tools/conf.d/resume ]
+			then
+				printf '[%bINFO%b] Creating resume file at /mnt/etc/initramfs-tools/conf.d/resume\n' $YELLOW $NC >&2
+				sudo chroot /mnt touch /etc/initramfs-tools/conf.d/resume
+			fi
+		fi
+
+		#Change ownership of crypttab and fstab to the current user.
+		sudo chown $USER:$USER /mnt/etc/crypttab
+		sudo chown $USER:$USER /mnt/etc/fstab
+
+		#Comment out all lines in /mnt/etc/fstab that has "swap" somewhere in the line.
+		printf '[%bINFO%b] Disabling swap entries in /mnt/etc/fstab\n' $YELLOW $NC >&2
+		sudo sed -i 's/.*swap.*/#&/' /mnt/etc/fstab
+
+		RESUME_PASSED=0
+		SWAP_INDEX=0
+		counter=0
+		for _initial_swapfs_mount in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
+		do
+			FUNCT_create_encrypted_swap
+			SWAP_INDEX=$(($SWAP_INDEX+1))
+			counter=$(($counter+1))
+		done
+
+		#Set the ownership of crypttab and fstab to root.
+		sudo chown root:root /mnt/etc/crypttab
+		sudo chown root:root /mnt/etc/fstab
+	else
+		printf '[%bNOTICE%b] Aborting swap configuration\n' $YELLOW $NC >&2
+	fi
 fi
 
 function FUNCT_update_changes_to_system(){
