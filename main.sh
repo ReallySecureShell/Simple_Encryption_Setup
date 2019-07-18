@@ -1,19 +1,19 @@
 #!/bin/bash
 ##################################LICENSE##########################################
 #MIT License
-#
+
 #Copyright (c) 2019 Max-Secure
-#
+
 #Permission is hereby granted, free of charge, to any person obtaining a copy
 #of this software and associated documentation files (the "Software"), to deal
 #in the Software without restriction, including without limitation the rights
 #to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 #copies of the Software, and to permit persons to whom the Software is
 #furnished to do so, subject to the following conditions:
-#
+
 #The above copyright notice and this permission notice shall be included in all
 #copies or substantial portions of the Software.
-#
+
 #THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 #IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -160,20 +160,198 @@ FUNCT_verify_required_packages
 
 #Read the mounted filesystems /etc/fstab to determine the location of all other partitions.
 function FUNCT_identify_all_partitions(){
-	printf '[%bINFO%b] Searching for partitions\n' $YELLOW $NC >&2
-
-	#Array containing discovered partitions.
-	___PARTITIONS___=()
-
-	local counter=0
-
-	for __PART__ in `awk '/^[^#]/{if ($3 == "swap" || $3 == "tmpfs" || $2 == "/boot" || $2 == "/boot/efi");else print $1":"$2":"$3;}' /mnt/etc/fstab`
+	#Bind system directories into the chroot so that we have a "usable" environment when we call the blkid command. Otherwise we will get an error stating that the process could not be created.
+	for i in dev sys proc
 	do
-		___PARTITIONS___[$counter]=$__PART__
-		printf 'Discovered partition: %s\n' ${___PARTITIONS___[$counter]}
-
-		counter=$(($counter+1))
+		sudo mount --bind /$i /mnt/$i
 	done
+
+	#If there is no shared-memory directory in /dev, create one.
+	if [ ! -d /dev/shm ]
+	then
+		printf '[%bINFO%b] Mounting tmpfs\n' $YELLOW $NC >&2
+		sudo mount -t tmpfs tmpfs /dev/shm
+	fi
+
+	#Setup a buffer file in-memory to store the output of the below awk command. This will be used to make sure there aren't duplicates in the file.
+	sudo touch /dev/shm/buffer
+	sudo chown $USER:$USER /dev/shm/buffer
+
+	#Discover all partitions in the /mnt/etc/fstab directory that are NOT swap, tmpfs, /boot, or /boot/efi.
+	printf '[%bINFO%b] Searching for partitions\n' $YELLOW $NC >&2
+	function __subfunct_output_discovered_partitions_to_buffer(){
+		#Get partitions from the /mnt/etc/fstab and output the results into /dev/shm/buffer
+		local DISCOVER_PARTITIONS_FROM_FSTAB=`awk '/^[^#]/{if ($3 == "swap" || $3 == "tmpfs" || $2 == "/boot" || $2 == "/boot/efi");else print $1":"$2":"$3;}' /mnt/etc/fstab`
+
+		if [[ -z $DISCOVER_PARTITIONS_FROM_FSTAB ]]
+		then
+			printf '[%bFAIL%b] No partitions discovered. Cannot continue\n' $RED $NC >&2
+			sudo umount /mnt/{dev,sys,proc}
+			sudo umount /mnt
+			exit 1
+		fi
+
+		for i in $DISCOVER_PARTITIONS_FROM_FSTAB
+		do
+			if [[ $1 == 'show' ]]
+			then
+				#Only show the contents of the fstab itself, not what is currently in the array.
+				echo $i
+			else
+				#Append discovered partitions to buffer.
+				echo $i >> /dev/shm/buffer
+			fi
+		done
+	}
+	__subfunct_output_discovered_partitions_to_buffer
+
+	#Populate partition array and perform a check to make sure there are no duplicate enteries.
+	function __subfunct_populate_partition_array(){
+		#If user edits the file, this function will be called with the 'after_edit' parameter. This pulls the user-edited partitions instead of the auto-discovered ones.
+		if [[ $1 == 'after_edit' ]]
+		then
+			#Set the file to the user-edited one.
+			local file='edit_partitions'
+
+			#If a line begins with a comment, remove the line.
+			sed -i '/^\#.*/d' edit_partitions
+
+			#If the separate partitions variable has the device that should be mounted into /var set.
+			#AND the user edited the array to exclude the var partition from encryption, then keep the
+			#variable separate_var_partition variable.
+			if [[ ! -z $separate_var_partition ]] && [[ -z `grep '.*\/\bvar\b.*' edit_partitions` ]]
+			then
+				: #Nothing
+			else
+				#Otherwise unset the variable.
+				unset separate_var_partition
+			fi
+
+			#Set variable that handles weather or not the root partition will be encrypted. This variable is used to help the rest of the script work with a non-encrypted root partition.
+			if [[ -z `grep ':\/:' edit_partitions` ]]
+			then
+				___unencrypted_root___='True'
+			fi
+		else
+			#If not manually editing the partitions file, then set the file to the auto-generated one.
+			local file='/dev/shm/buffer'
+		fi
+
+		local counter=0
+		___PARTITIONS___=()
+		#Primary purpose is to populate the partitions array.
+		while read __PARTITION__
+		do
+			#The if statement checks to make sure the filesystems are currently present on the device. The check statement just formats the enteries so that they can be parsed easily.
+			local __check__=$(sed -E 's/:.*//;s/UUID=//' <<< $__PARTITION__)
+			#Checks weather or not the value of __check__ is a uuid. If it is then run the blkid command with the -U (uuid) flag. If not run the blkid how you normally world (blkid [options] <device>).
+			#If the if statement returns empty we know that the filesystem is not currently present. If so, said filesystem will NOT be inserted into the array.
+			if [[ -z `if [[ ! $__check__ =~ (.){8}\-((.){4}\-){3}(.){12} ]];then sudo chroot /mnt blkid -o device $__check__;else sudo chroot /mnt blkid -U $__check__;fi` ]]
+			then
+				printf '[%bINFO%b] %s not present\n' $YELLOW $NC $__check__ >&2
+			else
+				#Populate array with enteries from the FILE.
+				___PARTITIONS___[$counter]+="$__PARTITION__ "
+				counter=$(($counter+1))
+			fi
+		done <<< $(awk '!seen[$_]++' $file)
+		unset counter
+		#Wipe, but do not delete the FILE.
+		cat /dev/null > $file
+	}
+	__subfunct_populate_partition_array
+
+	function __subfunct_show_partitions(){
+		#If the array is empty, tell the user to run a rescan, if not then print the contents of the array.
+		if [[ -z ${___PARTITIONS___[@]} ]]
+		then
+ 			printf 'No partitions in array. Run a (r)escan to populate the partition entries\n'
+		else
+			for i in ${___PARTITIONS___[@]}
+			do
+				echo $i
+			done
+		fi
+	}
+	__subfunct_show_partitions
+
+	function __subfunct_confirm_partition_setup(){
+		#Prompt the user to confirm, edit, see the contents of /mnt/etc/fstab, show the current enteries in the array, re-populate the array, or abort (exit).
+		read -p 'Partition configuration alright? (y)es (e)dit (s)how_all (S)how_current (r)escan (a)bort: '
+
+		case $REPLY in
+			[yY])
+				#Exit function and continue with rest of program.
+				return 0
+			;;
+			[eE])
+				#Make sure the file is empty before being populated.
+				cat /dev/null > edit_partitions
+
+				cat << END_OF_HELP > edit_partitions
+#Place a '#' at the beginning of a line to exclude it from the list.
+END_OF_HELP
+
+				for __PARTITION__ in ${___PARTITIONS___[@]}
+				do
+					if [[ ! -z `grep '.*\/\bvar\b.*' <<< $__PARTITION__` ]]
+					then
+						#This serves as a check in the event that the user removes the /var partition from the array. Which can cause errors if not mounted while generating the initramfs.
+						separate_var_partition=`sed -E 's/:.*//;s/UUID\=//' <<< $__PARTITION__`
+					fi
+					#Save partitions array to file
+					echo "$__PARTITION__" >> edit_partitions
+				done
+				#Unset the array so we don't get old enteries.
+				unset ___PARTITIONS___
+
+				nano edit_partitions
+
+				#Remove blank lines and lines beginning with spaces.
+				sed -Ei '/^$/d;/^\ .*$/d' edit_partitions
+
+				#Call the __subfunct_populate_partition_array function to process the user-edited partitions.
+				__subfunct_populate_partition_array 'after_edit'
+
+				#Show configuration currently assigned in the array
+				printf 'New partition configuration: \n'
+				__subfunct_show_partitions
+
+				#Recall current function
+				__subfunct_confirm_partition_setup
+			;;
+			's')
+				#Show all discovered partitions in the /etc/fstab
+				__subfunct_output_discovered_partitions_to_buffer 'show'
+				__subfunct_confirm_partition_setup
+			;;
+			'S')
+				#Show configuration currently loaded into the array
+				__subfunct_show_partitions
+				__subfunct_confirm_partition_setup
+			;;
+			'r')
+				#Re-populate the array with enteries from the fstab, then echo the loaded config in the array.
+				__subfunct_output_discovered_partitions_to_buffer
+				__subfunct_populate_partition_array
+				__subfunct_show_partitions
+				__subfunct_confirm_partition_setup
+			;;
+			'a')
+				sudo umount /mnt/{dev,sys,proc}
+				sudo umount /mnt
+				exit 0
+			;;
+			*)
+				printf 'Invalid Option\n'
+				__subfunct_confirm_partition_setup
+			;;
+		esac
+	}
+	__subfunct_confirm_partition_setup
+
+	#Unmount the bindings from the mounted filesystem.
+	sudo umount /mnt/{dev,sys,proc}
 }
 FUNCT_identify_all_partitions
 
@@ -280,10 +458,6 @@ FUNCT_create_gpg_key_passphrase
 
 #Creates a temparary file in shared memory that stores the LUKS encryption password. 
 function FUNCT_get_LUKS_passphrase(){
-	printf '[%bINFO%b] Mounting tmpfs\n' $YELLOW $NC >&2
-	#Create a mapped memory file in /dev/shm
-	sudo mount -t tmpfs -o size=1k tmpfs /dev/shm
-
 	function __subfunct_ask_for_password(){
 		#Store the LUKS passphrase and verify passphrase to check if the user entered the passphrase correctly.
 		local ___LUKS_PASSPHRASE___=()
@@ -383,22 +557,25 @@ _rootfs_mapper_name='root'
 
 #Chroot into the encrypted filesystem.
 function FUNCT_setup_mount(){
-	#Since opening the device can be skipped in the above function,
-	#check if the mountpoint exists, if not, open the encrypted
-	#filesystem.
-	if [[ ! -b $1 ]]
+	#open the root filesystem normally if the root was encrypted, if root is NOT encrypted mount the device normally.
+	if [ -z $___unencrypted_root___ ]
 	then
-		printf '[%bINFO%b] %s not yet opened! Opening it now.\n' $YELLOW $NC $2 >&2
-		echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $2 $_rootfs_mapper_name
-		if [[ -b $1 ]]
+		if [[ ! -b $1 ]]
 		then
-			printf '[%bOK%b]   Successfully opened %s\n' $GREEN $NC $2 >&2
-		else
-			printf '[%bFAIL%b] Failed to open %s\n' $RED $NC $2 >&2
+			printf '[%bINFO%b] %s not yet opened! Opening it now.\n' $YELLOW $NC $2 >&2
+			echo -n `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` | sudo cryptsetup --key-file=- open $2 $_rootfs_mapper_name
+			if [[ -b $1 ]]
+			then
+				printf '[%bOK%b]   Successfully opened %s\n' $GREEN $NC $2 >&2
+			else
+				printf '[%bFAIL%b] Failed to open %s\n' $RED $NC $2 >&2
 
-			#Exit because there is nothing that can be done if the LUKS device fails to mount.
-			exit 1
+				#Exit because there is nothing that can be done if the LUKS device fails to mount.
+				exit 1
+			fi
 		fi
+	else
+		sudo mount $2 /mnt
 	fi
 
 	#Mount the decrypted filesystem in the /mnt directory
@@ -427,7 +604,6 @@ function FUNCT_setup_mount(){
 	done
 
 	local counter=0
-
 	#Mount all other encrypted partitions to the mount point inside the mounted filesystem.
 	for __MAPPER__ in ${___MAPPER_NAMES___[@]}
 	do
@@ -443,6 +619,17 @@ function FUNCT_setup_mount(){
 		fi
 		counter=$(($counter+1))
 	done
+
+	#Mount the /var partition even though it was not defined in the user-configured partitions file.
+	if [ ! -z $separate_var_partition ]
+	then
+		if [[ ! $separate_var_partition =~ (.){8}\-((.){4}\-){3}(.){12} ]]
+		then
+			sudo mount $separate_var_partition /mnt/var
+		else
+			sudo mount --uuid $separate_var_partition /mnt/var
+		fi
+	fi
 }
 FUNCT_setup_mount "/dev/mapper/$_rootfs_mapper_name" $_initial_rootfs_mount
 
@@ -510,7 +697,7 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 	do
 		__MAPPER_NAME__=${___MAPPER_NAMES___[$counter]}
 
-		printf 'fstab: %s changed_to: /dev/mapper/%s\n' $__FSTAB_ORIGINAL_ENTRY__ $__MAPPER_NAME__ >&2
+		printf 'fstab: %s changed to: /dev/mapper/%s\n' $__FSTAB_ORIGINAL_ENTRY__ $__MAPPER_NAME__ >&2
 		if [[ ! $__FSTAB_ORIGINAL_ENTRY__ =~ ^UUID\= ]]
 		then
 			__FSTAB_ORIGINAL_ENTRY__=$(sed 's/\//\\\//g' <<< "$__FSTAB_ORIGINAL_ENTRY__")
@@ -599,7 +786,7 @@ function FUNCT_modify_grub_configuration(){
 	sudo sed -Ei 's/GRUB_ENABLE_CRYPTODISK=y/&\nGRUB_PRELOAD_MODULES="part_gpt part_msdos luks cryptodisk"/' /mnt/etc/default/grub
 
 	#Modify the GRUB_CMDLINE_LINUX_DEFAULT entry if using the mkinitcpio creation tool.
-	if [ $___INIT_BACKEND___ == 'mkinitcpio' ]
+	if [ $___INIT_BACKEND___ == 'mkinitcpio' ] && [ -z $___unencrypted_root___ ]
 	then
 		#Get the UUID of the root partition.
 		local __ROOT_UUID__=$(sudo sed -En '/^root/{
@@ -746,7 +933,7 @@ else
 
 	#Function for handeling editing (primarily) of the swap array. It provides options for the user.
 	function __subfunct_prep_for_encrypting_swap(){
-		read -p 'Swap configuration alright? (y)es (e)dit (s)how_all_swap (S)how_configured_swap (r)escan (a)bort: '
+		read -p 'Swap configuration alright? (y)es (e)dit (s)how_all (S)how_selected (r)escan (a)bort: '
 
 		case $REPLY in
 			[yY])
@@ -919,6 +1106,12 @@ FUNCT_update_changes_to_system
 
 #Unmount partitions
 function FUNCT_cleanup(){
+	#Unmount unencrypted /var partition.
+	if [ ! -z $separate_var_partition ]
+	then
+		sudo umount /mnt/var
+	fi
+
 	for __MOUNTPOINT__ in ${___PARTITIONS___[@]}
 	do
 		__MOUNTPOINT__=$(awk -F ':' '{print $2}' <<< $__MOUNTPOINT__)
@@ -947,7 +1140,7 @@ function FUNCT_cleanup(){
 		sudo cryptsetup close /dev/mapper/$__MAPPER__
 	done
 	#Remove Encrypted LUKS file from memory.
-	printf '[%bINFO%b] Shreding encrypted LUKS passphrase\n' $YELLOW $NC >&2
+	printf '[%bINFO%b] Shreding /dev/shm/LUKS_PASSPHRASE.gpg\n' $YELLOW $NC >&2
 	sudo shred /dev/shm/LUKS_PASSPHRASE.gpg
 
 	#End message
