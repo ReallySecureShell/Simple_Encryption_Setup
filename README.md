@@ -33,7 +33,7 @@ Or use the shortend URL:
 
 SHA256 Checksum
 
-    e6586e51fc38901cabbe16642b6f39d45d21202632540871d5d018e5508ee872  encrypt.sh
+    af719b8f7bd7073b4beb5d9e092cb1674d44f38eecb3c00d6576ccb39b076334  encrypt.sh
 
 ## 2.0: Pre-Setup
 
