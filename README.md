@@ -117,7 +117,7 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 
 Below are known working partition setups. I want to make it clear that you DO NOT have to follow this partition scheme exactly. For example, you can have ROOT on any partition (sda1, sda2, sda3...etc) or Logical Volume (myGroupRoot, myRoot, Root...etc) same applies for the other partitions. Also you may notice there is no SWAP partition in the scheme, don't worry, encrypting SWAP is still supported just not depicted.
 
-You also <i>don't</i> need to have a separate `/home, /var, etc...` you just need a valid `/` partition.
+Lastly, you can choose what partitions to encrypt during runtime. You can even opt to not encrypt your `/` partition.
 
 ```
   LEGEND (Without LVM)
