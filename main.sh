@@ -49,7 +49,7 @@ esac
 #Get the rootfs partition
 function FUNCT_get_rootfs_mountpoint(){
 	#To help the user, run the lsblk command
-        lsblk
+	lsblk
 
 	#Prompt the user for the partition containing the root filesystem.
 	function __subfunct_check_if_valid_block_device(){
@@ -65,9 +65,8 @@ function FUNCT_get_rootfs_mountpoint(){
 }
 FUNCT_get_rootfs_mountpoint
 
-#ONLY INITRAMFS-TOOLS and mkinitcpio are supported at the moment. But this function will stay as DRACUT support is planned.
-########################################################################################################
-function FUNCT_verify_required_packages(){
+#Mount all partitions into their respective locations by reading /mnt/etc/fstab
+function FUNCT_mount_all_partitions_from_fstab(){
 	printf '[%bINFO%b] Mounting %s\n' $YELLOW $NC $_initial_rootfs_mount >&2
 
 	#Mount root partition into /mnt
@@ -85,6 +84,134 @@ function FUNCT_verify_required_packages(){
 		esac
 	fi
 
+	#Discover all partitions on the mounted filesystem. This is a function so its easier to control the execution of this one variable.
+	function __subfunct_discover_partitions(){
+		DISCOVER_PARTITIONS_FROM_FSTAB=`awk '/^[^#]/{if ($3 == "swap" || $3 == "tmpfs" || $2 == "/boot" || $2 == "/boot/efi");else print $1":"$2":"$3;}' /mnt/etc/fstab`
+	}
+	__subfunct_discover_partitions
+
+	#Exit script if no partitions were discovered. This means that you CANNOT have a separate /etc partition.
+	if [[ -z $DISCOVER_PARTITIONS_FROM_FSTAB ]]
+	then
+		printf '[%bFAIL%b] No partitions discovered. Cannot continue\n' $RED $NC >&2
+		sudo umount /mnt
+		exit 1
+	fi
+
+	#Unmount Index, keeps track of what partitions to unmount.
+	__unmount_index__=()
+
+	#Counter for the array indexes.
+	local counter=0
+
+	#The first time this function runs NO filesystem precence check is performed.
+	#However its contents will be updated when the script determines what partitions
+	#it will encrypt.
+	function __subfunct_mount_filesystems(){
+		#Mount all partitions into their respective locations
+		for __MOUNT_PART__ in $DISCOVER_PARTITIONS_FROM_FSTAB
+		do
+			#If function called with a parameter, set __PARTITION__ equal to the parameter. This is used to update the arrays on which filesystems are actually present.
+			if [ ! -z $1 ]
+			then
+				__MOUNT_PART__=$1
+				if [[ ! -z $2 ]]
+				then
+					counter=$2
+				fi
+			fi
+
+			#Exclude the root partition as its already mounted.
+			if [[ ! $__MOUNT_PART__ =~ ^.*:\/:.*$ ]]
+			then
+				#The mountpoint of the partition.
+				mountpoint=$(sed -E '
+				s/.*:\/:.*//
+				s/.*:(.*):.*/\1/
+				' <<< $__MOUNT_PART__)
+
+				#The device that's to be mounted.
+				__MOUNT_PART__=$(sed -E '
+				s/:.*//;s/UUID=//
+				' <<< $__MOUNT_PART__)
+
+				#Only run print statement if function isn't called with a parameter.
+				if [[ -z $1 ]]
+				then
+					printf 'Mounting: %s into /mnt%s\n' $__MOUNT_PART__ $mountpoint
+				fi
+
+				#Determine if the device is identified using a UUID in the fstab. Also DO NOT mount if the function is called with a parameter.
+				if [[ $__MOUNT_PART__ =~ (.){8}\-((.){4}\-){3}(.){12} ]] && [[ -z $1 ]]
+				then
+					sudo mount --uuid $__MOUNT_PART__ /mnt$mountpoint
+
+					#Get the exit status the of mount command so we can use it to display an error if a device did not mount.
+					if [ $? != 0 ]
+					then
+						local mount_failed='True'
+					fi
+				elif [[ ! $__MOUNT_PART__ =~ (.){8}\-((.){4}\-){3}(.){12} ]] && [[ -z $1 ]]
+				then
+					sudo mount $__MOUNT_PART__ /mnt$mountpoint
+
+					if [ $? != 0 ]
+					then
+						local mount_failed='True'
+					fi
+				fi
+
+				if [ ! -z $mount_failed ]
+				then
+					printf '[%bWARN%b] Failed to mount %s into /mnt%s\n' $YELLOW $NC $__MOUNT_PART__ $mountpoint >&2
+					unset mount_failed
+				else
+					__unmount_index__[$counter]+="/mnt$mountpoint "
+					if [[ $counter == $2 ]]
+					then
+						#Don't increase counter
+						:
+					else
+						#Increase counter if $counter is not equal to that of parameter $2.
+						counter=$(($counter+1))
+					fi
+				fi
+
+				#If running from in a loop (which is what the non-empty parameter $1 implies) break at the end of loop.
+				if [[ ! -z $1 ]]
+				then
+					break
+				fi
+			fi
+		done
+	}
+	__subfunct_mount_filesystems
+
+	#Unmount partitions that were mounted by the code above.
+	#CHECK to make sure the unmount array is NOT empty before
+	#calling this function.
+
+	#This function MUST BE CALLED before EVERY EXIT statement!
+	function __subfunct_unmount(){
+		if [[ ! -z ${__unmount_index__[@]} ]]
+		then
+			for unmount in ${__unmount_index__[@]}
+			do
+				printf 'Unmount: %s\n' $unmount
+				sudo umount $unmount
+			done
+		else
+			printf '[%bINFO%b] Nothing to unmount: no other partitions mounted\n' $YELLOW $NC >&2
+		fi
+	}
+
+	unset counter
+}
+FUNCT_mount_all_partitions_from_fstab
+
+#ONLY INITRAMFS-TOOLS and mkinitcpio are supported at the moment. But this function will stay as DRACUT support is planned.
+########################################################################################################
+function FUNCT_verify_required_packages(){
 	#Keep track if initramfs-tools is found first. If not use dracut.
 	local SUCCESS=0
 
@@ -101,7 +228,6 @@ function FUNCT_verify_required_packages(){
 			if [ $REQUIRED_PACKAGE == 'update-initramfs' ]
 			then
 				___INIT_BACKEND___='update-initramfs'
-
 				SUCCESS=$(($SUCCESS+1))
 			elif [ $REQUIRED_PACKAGE == 'mkinitcpio' ]
 			then
@@ -117,6 +243,7 @@ function FUNCT_verify_required_packages(){
 					#Exit because there is no dracut support in the script yet.
 					###########################################################################
 					printf '[%bFAIL%b] No dracut support. Exiting\n' $RED $NC >&2
+					__subfunct_unmount
 					sudo umount /mnt
 					exit 1
 					###########################################################################
@@ -131,6 +258,7 @@ function FUNCT_verify_required_packages(){
 			#If cryptsetup is not installed
 			if [ $REQUIRED_PACKAGE == 'cryptsetup' ]
 			then
+				__subfunct_unmount
 				sudo umount /mnt
 				exit 1
 			#If update-initramfs is not found
@@ -146,6 +274,7 @@ function FUNCT_verify_required_packages(){
 				if [[ $ERROR -ge 2 ]]
 				then
 					printf '[%bFAIL%b] No compatible initramfs creation tool found. Exiting\n' $RED $NC >&2
+					__subfunct_unmount
 					sudo umount /mnt
 					exit 1
 				fi
@@ -177,26 +306,15 @@ function FUNCT_identify_all_partitions(){
 	sudo touch /dev/shm/buffer
 	sudo chown $USER:$USER /dev/shm/buffer
 
-	#Discover all partitions in the /mnt/etc/fstab directory that are NOT swap, tmpfs, /boot, or /boot/efi.
+	#Append all found partitions to a buffer in shared-memory (tmpfs).
 	printf '[%bINFO%b] Searching for partitions\n' $YELLOW $NC >&2
 	function __subfunct_output_discovered_partitions_to_buffer(){
-		#Get partitions from the /mnt/etc/fstab and output the results into /dev/shm/buffer
-		local DISCOVER_PARTITIONS_FROM_FSTAB=`awk '/^[^#]/{if ($3 == "swap" || $3 == "tmpfs" || $2 == "/boot" || $2 == "/boot/efi");else print $1":"$2":"$3;}' /mnt/etc/fstab`
-
-		if [[ -z $DISCOVER_PARTITIONS_FROM_FSTAB ]]
-		then
-			printf '[%bFAIL%b] No partitions discovered. Cannot continue\n' $RED $NC >&2
-			sudo umount /mnt/{dev,sys,proc}
-			sudo umount /mnt
-			exit 1
-		fi
-
 		for i in $DISCOVER_PARTITIONS_FROM_FSTAB
 		do
 			if [[ $1 == 'show' ]]
 			then
 				#Only show the contents of the fstab itself, not what is currently in the array.
-				echo $i
+				echo "Found partition: $i"
 			else
 				#Append discovered partitions to buffer.
 				echo $i >> /dev/shm/buffer
@@ -212,9 +330,6 @@ function FUNCT_identify_all_partitions(){
 		then
 			#Set the file to the user-edited one.
 			local file='edit_partitions'
-
-			#If a line begins with a comment, remove the line.
-			sed -i '/^\#.*/d' edit_partitions
 
 			#If the separate partitions variable has the device that should be mounted into /var set.
 			#AND the user edited the array to exclude the var partition from encryption, then keep the
@@ -237,25 +352,41 @@ function FUNCT_identify_all_partitions(){
 			local file='/dev/shm/buffer'
 		fi
 
-		local counter=0
+		#Reset the unmount index in preparation for its re-indexing.
+		if [ -z $__do_not_update_unmount_array ]
+		then
+			__unmount_index__=()
+		fi
+		#Controls array indexing
+		counter=0
+
+		#Array that stores what partitions will be encrypted. This array is the MAIN FOCUS of this entire function, not just the sub-functions.
 		___PARTITIONS___=()
 		#Primary purpose is to populate the partitions array.
 		while read __PARTITION__
 		do
 			#The if statement checks to make sure the filesystems are currently present on the device. The check statement just formats the enteries so that they can be parsed easily.
 			local __check__=$(sed -E 's/:.*//;s/UUID=//' <<< $__PARTITION__)
+
 			#Checks weather or not the value of __check__ is a uuid. If it is then run the blkid command with the -U (uuid) flag. If not run the blkid how you normally world (blkid [options] <device>).
 			#If the if statement returns empty we know that the filesystem is not currently present. If so, said filesystem will NOT be inserted into the array.
 			if [[ -z `if [[ ! $__check__ =~ (.){8}\-((.){4}\-){3}(.){12} ]];then sudo chroot /mnt blkid -o device $__check__;else sudo chroot /mnt blkid -U $__check__;fi` ]]
 			then
 				printf '[%bINFO%b] %s not present\n' $YELLOW $NC $__check__ >&2
 			else
+				if [ -z $__do_not_update_unmount_array ]
+				then
+					#Update mount and unmount arrays on which filesystems are actually currently present.
+					__subfunct_mount_filesystems $__PARTITION__ $counter
+				fi
+
 				#Populate array with enteries from the FILE.
 				___PARTITIONS___[$counter]+="$__PARTITION__ "
 				counter=$(($counter+1))
 			fi
 		done <<< $(awk '!seen[$_]++' $file)
 		unset counter
+
 		#Wipe, but do not delete the FILE.
 		cat /dev/null > $file
 	}
@@ -263,13 +394,13 @@ function FUNCT_identify_all_partitions(){
 
 	function __subfunct_show_partitions(){
 		#If the array is empty, tell the user to run a rescan, if not then print the contents of the array.
-		if [[ -z ${___PARTITIONS___[@]} ]]
+		if [ ! -z $__deny_confirmation_until_array_is_repopulated ]
 		then
- 			printf 'No partitions in array. Run a (r)escan to populate the partition entries\n'
+			printf 'No partitions in array. Run a (r)escan to populate the partition entries\n'
 		else
 			for i in ${___PARTITIONS___[@]}
 			do
-				echo $i
+				echo "Selected partition: $i"
 			done
 		fi
 	}
@@ -281,10 +412,20 @@ function FUNCT_identify_all_partitions(){
 
 		case $REPLY in
 			[yY])
-				#Exit function and continue with rest of program.
-				return 0
+				#If the user edited the array and it came-out to be null, then display an error message.
+				if [ -z $__deny_confirmation_until_array_is_repopulated ]
+				then
+					#Exit function and continue with rest of program.
+					return 0
+				else
+					printf 'Cannot continue until the list is re-populated\n'
+					__subfunct_confirm_partition_setup
+				fi
 			;;
 			[eE])
+				#Do NOT update the unmount array if the partitions array is being edited. This is because if a partition is removed, then that partition will NOT be added when re-running the __subfunct_mount_filesystems function, this variable prevents that.
+				__do_not_update_unmount_array='True'
+
 				#Make sure the file is empty before being populated.
 				cat /dev/null > edit_partitions
 
@@ -307,14 +448,22 @@ END_OF_HELP
 
 				nano edit_partitions
 
-				#Remove blank lines and lines beginning with spaces.
-				sed -Ei '/^$/d;/^\ .*$/d' edit_partitions
+				#If a line begins with a comment, has ONLY spaces, or is just empty (null) then remove the line.
+				sed -Ei '/^\#.*/d;/^$/d;/^\ .*$/d' edit_partitions
 
-				#Call the __subfunct_populate_partition_array function to process the user-edited partitions.
-				__subfunct_populate_partition_array 'after_edit'
+				#If user-edited file is greater then zero, then print off config info. If not then lock the user into the parent function until they re-load the array.
+				if [ -s edit_partitions ]
+				then
+					#Call the __subfunct_populate_partition_array function to process the user-edited partitions.
+					__subfunct_populate_partition_array 'after_edit'
 
-				#Show configuration currently assigned in the array
-				printf 'New partition configuration: \n'
+					#Show configuration currently assigned in the array
+					printf 'New partition configuration: \n'
+				else
+					__deny_confirmation_until_array_is_repopulated='True'
+				fi
+
+				#show the current setup
 				__subfunct_show_partitions
 
 				#Recall current function
@@ -331,13 +480,18 @@ END_OF_HELP
 				__subfunct_confirm_partition_setup
 			;;
 			'r')
+				unset __do_not_update_unmount_array
+				unset __deny_confirmation_until_array_is_repopulated
 				#Re-populate the array with enteries from the fstab, then echo the loaded config in the array.
+				__subfunct_discover_partitions
 				__subfunct_output_discovered_partitions_to_buffer
 				__subfunct_populate_partition_array
 				__subfunct_show_partitions
 				__subfunct_confirm_partition_setup
 			;;
 			'a')
+				#Unmount partitions, if any other than / or bindings (sys, dev, proc) where mounted.
+				__subfunct_unmount
 				sudo umount /mnt/{dev,sys,proc}
 				sudo umount /mnt
 				exit 0
@@ -349,6 +503,9 @@ END_OF_HELP
 		esac
 	}
 	__subfunct_confirm_partition_setup
+
+	#Unmount all mounted partitions from fstab (if any).
+	__subfunct_unmount
 
 	#Unmount the bindings from the mounted filesystem.
 	sudo umount /mnt/{dev,sys,proc}
