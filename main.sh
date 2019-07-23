@@ -200,8 +200,6 @@ function FUNCT_mount_all_partitions_from_fstab(){
 				printf 'Unmount: %s\n' $unmount
 				sudo umount $unmount
 			done
-		else
-			printf '[%bINFO%b] Nothing to unmount: no other partitions mounted\n' $YELLOW $NC >&2
 		fi
 	}
 
