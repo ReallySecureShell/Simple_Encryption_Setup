@@ -9,7 +9,7 @@ This script uses cryptsetup to add encryption to all partitions defined in your 
 * <a href="#10-download">1.0: Download</a>
 * <a href="#20-pre-setup">2.0: Pre-Setup</a>
   * <a href="#required-packages">Required Packages</a>
-  * <a href="#get-a-live-cd">Get a Live-CD</a>
+  * <a href="#obtain-clonezilla-and-an-image-writter">Obtain Clonezilla and an Image Writter</a>
   * <a href="#backup-your-system">Backup Your System</a>
   * <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>
 * <a href="#30-running-the-script">3.0: Running the Script</a>
@@ -38,7 +38,7 @@ SHA256 Checksum
 ## 2.0: Pre-Setup
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
-A good choice is to burn a Clonezilla ISO to a USB drive. Clonezilla has all the software that we need to setup encryption on the main drive.<br>
+A good choice is to burn a Clonezilla ISO to a USB drive.<br>
 
 Also be sure to unplug/disable any device that you do not want encrypted. This only applies to devices listed in your /etc/fstab.
 
@@ -56,7 +56,7 @@ You <b>must</b> also be using either
 
 as your initramfs generation utility
 
-### Get a Live-CD
+### Obtain Clonezilla and an Image Writter
 
 <a href="https://mirrors.xtom.com/osdn//clonezilla/71030/clonezilla-live-2.6.1-25-amd64.iso">Download the Clonezilla ISO</a>
 
