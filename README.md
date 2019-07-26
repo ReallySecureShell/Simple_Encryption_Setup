@@ -15,6 +15,7 @@ This script uses cryptsetup to add encryption to all partitions defined in your 
 * <a href="#30-running-the-script">3.0: Running the Script</a>
 * <a href="#40-things-to-note-before-using-the-program">4.0: Things to note before using the program</a>
   * <a href="#partition-schemes">Partition Schemes</a>
+  * <a href="#known-working-distributions">Known Working Distributions</a>
 * <a href="#50-recovery-deprecated">5.0: Recovery (deprecated)</a>
   * <a href="#recover-from-backup">Recover From Backup</a>
   * <a href="#recover-without-a-backup">Recover WITHOUT a Backup</a>
@@ -191,6 +192,15 @@ EFI Example Setup
 |  /dev/sda1         |                                  /dev/sda2                                       |
 +--------------------+----------------------------------------------------------------------------------+
 ```
+
+### Known Working Distributions
+
+| Distribution | Remarks |
+| :--- | :--- | 
+| Ubuntu 18.04 | None |
+| Manjaro 18.0 | None |
+
+<b>Note that the init generation utility is the real limiting-factor. Your distribution <i>should</i> still work if using any of the popular distros.</b>
 
 ## 5.0: Recovery (deprecated)
 
