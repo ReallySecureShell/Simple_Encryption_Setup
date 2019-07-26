@@ -13,7 +13,7 @@ This script uses cryptsetup to add encryption to all partitions defined in your 
   * <a href="#backup-your-system">Backup Your System</a>
   * <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>
 * <a href="#30-running-the-script">3.0: Running the Script</a>
-* <a href="#40-drawbacks-and-shortcomings">4.0: Drawbacks and Shortcomings</a>
+* <a href="#40-things-to-note-before-using-the-program">4.0: Things to note before using the program</a>
   * <a href="#partition-schemes">Partition Schemes</a>
 * <a href="#50-recovery-deprecated">5.0: Recovery (deprecated)</a>
   * <a href="#recover-from-backup">Recover From Backup</a>
@@ -97,9 +97,9 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 
 ![Output sample](./Assets/Run_example.gif)
 
-## 4.0: Drawbacks and Shortcomings
+## 4.0: Things to note before using the program
 
-| Things to note before using the program |
+| Drawbacks and Shortcomings |
 | --- |
 | mkinitcpio and initramfs-tools are the only supported initramfs generation utilities |
 | Only works with i386 and x86_64 systems |
