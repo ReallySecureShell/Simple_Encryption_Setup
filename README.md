@@ -48,13 +48,7 @@ The package: <b>cryptsetup</b> is required. <b>You must install this package on 
     sudo apt update
     sudo apt install cryptsetup
 
-You <b>must</b> also be using either 
-
-    initramfs-tools
-    or
-    mkinitcpio
-
-as your initramfs generation utility
+You <b>must</b> also be using either `initramfs-tools` or `mkinitcpio` as your initramfs generation utility.
 
 ### Obtain Clonezilla and an Image Writter
 
