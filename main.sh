@@ -800,10 +800,10 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 		#Using the default $REPLY variable since it is automatically assigned anyway.
 		#And it saves writting a variable that will be used only once.
 		case $REPLY in
-			y|Y)
+			[yY])
 				discard=',discard'
 			;;
-			n|N)
+			[nN])
 				discard=''
 			;;
 			*)
@@ -1258,6 +1258,107 @@ function FUNCT_update_changes_to_system(){
 	fi
 }
 FUNCT_update_changes_to_system
+
+#Backup the LUKS headers for all encrypted mediums.
+function FUNCT_Backup_LUKS_Headers(){
+	local counter=0
+
+	#Create directory in /dev/shm that will store the LUKS_Headers. 
+	#This makes it easy to compress while also ensuring that the 
+	#unencrypted headers are wiped upon shutdown.
+	sudo mkdir /dev/shm/Header_Backups
+
+	#Make the Header_Backups directory owned by the current user.
+	sudo chown $USER:$USER /dev/shm/Header_Backups
+
+	#Loop through all LUKS devices, dumping their header files and outputting them into RAM.
+	for __BACKUP_DRIVE__ in ${__ADD_KEYFILE_TO_DEVICE__[@]}
+	do
+		__MAPPER_NAME__=${___MAPPER_NAMES___[$counter]}
+		printf '[%bINFO%b] Dumping LUKS header for %s (%s)\n' $YELLOW $NC $__BACKUP_DRIVE__ $__MAPPER_NAME__ >&2
+
+		sudo cryptsetup luksHeaderBackup $__BACKUP_DRIVE__ --header-backup-file "/dev/shm/Header_Backups/LUKS_HEADER_BACKUP_FOR_$__MAPPER_NAME__.bin"
+
+		counter=$(($counter+1))
+	done
+
+	#Generate a sha256 hash for each LUKS-header.
+	printf '[%bINFO%b] Generating a sha256 checksum for each LUKS-header\n' $YELLOW $NC >&2
+	cd /dev/shm/Header_Backups/
+	ls -1 * | xargs -i sudo sha256sum {} >> checksum.txt
+	cat checksum.txt
+	chmod 444 checksum.txt
+	cd -
+
+	printf '[%bINFO%b] Creating LUKS-header archive\n' $YELLOW $NC >&2
+	#Create a gzip compressed archive of the Header_Backups directory.
+	sudo tar -C /dev/shm/Header_Backups/ --preserve-permissions -czvf BACKUP_OF_LUKS_HEADERS.tar.gzip .
+
+	#For future reference, if a passphrase was not defined, i.e. you choose to use a yubikey.
+	#Then have the user pick a passphrase below.
+	##################################################################################
+	printf "[%b--IMPORTANT--%b] The LUKS-header archive will be encrypted with the user's LUKS passphrase\n" $YELLOW $NC >&2
+
+	#Wait 3 seconds to let the user read the above message.
+	sleep 3
+
+	printf '[%bINFO%b] Encrypting compressed archive\n' $YELLOW $NC >&2
+	#Encrypt the compressed archive using the user's passphrase.
+	gpg --quiet --cipher-algo aes256 --digest-algo sha512 -c -a --passphrase `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` -o BACKUP_OF_LUKS_HEADERS.tar.gzip.asc BACKUP_OF_LUKS_HEADERS.tar.gzip
+	####################################################################################
+
+	printf '[%bINFO%b] Shreding unencrypted LUKS-header archive\n' $YELLOW $NC >&2
+	#Shred unencrypted LUKS header image.
+	sudo shred --zero BACKUP_OF_LUKS_HEADERS.tar.gzip
+	sudo rm BACKUP_OF_LUKS_HEADERS.tar.gzip
+
+	printf '[%bINFO%b] Setting LUKS-header archive to read-only\n' $YELLOW $NC >&2
+	#Make the encrypted LUKS-header image only readable.
+	chmod 444 BACKUP_OF_LUKS_HEADERS.tar.gzip.asc
+
+	#Create a new directory that will hold the LUKS backup image.
+	mkdir webserver_luks_headers_download/
+	mv BACKUP_OF_LUKS_HEADERS.tar.gzip.asc webserver_luks_headers_download/
+	printf '[%bINFO%b] LUKS-header archive moved to: %s\n' $YELLOW $NC `ls -1 webserver_luks_headers_download/BACKUP_OF_LUKS_HEADERS.tar.gzip.asc` >&2
+
+	#Setup an python http server that will be used to host the backup file for download.
+	function __subfunct_open_webserver_to_download_LUKS_backup(){
+		read -p 'Open a HTTP server to download the LUKS-header archive? (y)es (n)o (s)how_interfaces: '
+
+		case $REPLY in 
+			[yY])
+				#Trap statement that will handle exiting the python webserver.
+				trap 'cd -;return 0' SIGINT SIGQUIT
+
+				printf '[%bINFO%b] Starting webserver. CTRL-C when finished to continue...\n' $YELLOW $NC >&2
+
+				#Change to directory containing the LUKS header image.
+				cd webserver_luks_headers_download/
+
+				#Start webserver on all interfaces.
+				python3 -m http.server
+			;;
+			[nN])
+				return 0
+			;;
+			[sS])
+				#Display all IP addresses for all interfaces on the system.
+				ip address show |\
+				grep -Eo '^[0-9]+:(.*?):| inet ([0-9]+\.){1,3}([0-9]+)' |\
+				sed 's/[0-9]$/&\n/'
+				__subfunct_open_webserver_to_download_LUKS_backup
+			;;
+			*)
+				printf 'Invalid option!\n'
+				__subfunct_open_webserver_to_download_LUKS_backup
+			;;
+		esac
+	}
+	__subfunct_open_webserver_to_download_LUKS_backup
+	unset counter
+	unset trap
+}
+FUNCT_Backup_LUKS_Headers
 
 #Unmount partitions
 function FUNCT_cleanup(){
