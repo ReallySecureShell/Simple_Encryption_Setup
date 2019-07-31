@@ -9,7 +9,7 @@ This script uses cryptsetup to add encryption to all partitions defined in your 
 * <a href="#10-download">1.0: Download</a>
 * <a href="#20-pre-setup">2.0: Pre-Setup</a>
   * <a href="#required-packages">Required Packages</a>
-  * <a href="#obtain-clonezilla-and-an-image-writter">Obtain Clonezilla and an Image Writter</a>
+  * <a href="#obtain-clonezilla-and-image-writter">Obtain Clonezilla and Image Writter</a>
   * <a href="#backup-your-system">Backup Your System</a>
   * <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>
 * <a href="#30-running-the-script">3.0: Running the Script</a>
@@ -52,7 +52,7 @@ The package: <b>cryptsetup</b> is required. <b>You must install this package on 
 
 You <b>must</b> also be using either `initramfs-tools` or `mkinitcpio` as your initramfs generation utility.
 
-### Obtain Clonezilla and an Image Writter
+### Obtain Clonezilla and Image Writter
 
 <a href="https://mirrors.xtom.com/osdn//clonezilla/71030/clonezilla-live-2.6.1-25-amd64.iso">Download the Clonezilla ISO</a>
 
@@ -205,11 +205,11 @@ EFI Example Setup
 
 ## 5.0: Planned Features
 
-| Features |
-| :---     |
-| Dracut support |
-| Detached LUKS header on USB key |
-| Yubikey support for LUKS partition |
+| Features | Description |
+| :---     | :--- |
+| Dracut support | Support for the dracut init-generation utility |
+| Detached LUKS header on USB key | Choose to store LUKS headers on a separate medium |
+| Yubikey support for LUKS | Use a challenge-response from a yubikey instead of a passphrase. This is used to unlock the LUKS partition(s) |
 
 ## 6.0: Recovery (deprecated)
 
