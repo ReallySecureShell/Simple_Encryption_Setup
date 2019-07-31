@@ -208,8 +208,8 @@ EFI Example Setup
 | Features | Description |
 | :---     | :--- |
 | Dracut support | Support for the dracut init-generation utility |
-| Detached LUKS header on USB key | Choose to store LUKS headers on a separate medium |
-| Yubikey support for LUKS | Use a challenge-response from a yubikey instead of a passphrase. This is used to unlock LUKS partition(s) |
+| Detached LUKS header | Choose to store the LUKS header on a separate medium |
+| Yubikey support for LUKS | Use a challenge-response from a yubikey as a LUKS key |
 
 ## 6.0: Recovery (deprecated)
 
