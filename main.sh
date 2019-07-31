@@ -629,15 +629,19 @@ function FUNCT_get_LUKS_passphrase(){
 		#If the passphrases differ, recall the function.
 		if [[ ${___LUKS_PASSPHRASE___[0]} != ${___LUKS_PASSPHRASE___[1]} ]]
 		then
-			printf 'Invalid passphrase\n'
-			__subfunct_ask_for_password
+			printf 'Invalid passphrase: Passphrases do not match\n'
+		elif [[ -z ${___LUKS_PASSPHRASE___[0]} ]]
+		then
+			printf 'Invalid passphrase: Empty\n'
 		else
 			printf '[%bINFO%b] Saving encrypted LUKS passphrase to /dev/shm/LUKS_PASSPHRASE.gpg\n' $YELLOW $NC >&2
 			#Encrypt LUKS passphrase and store it in /dev/shm/LUKS_Password.gpg
 			gpg --quiet --cipher-algo aes256 --digest-algo sha512 -c -a --passphrase $__key_passphrase__ -o /dev/shm/LUKS_PASSPHRASE.gpg << __END_OF_PASSPHRASE__
 ${___LUKS_PASSPHRASE___[0]}
 __END_OF_PASSPHRASE__
+		return 0
 		fi
+		__subfunct_ask_for_password
 	}
 	__subfunct_ask_for_password
 }
@@ -1304,8 +1308,16 @@ function FUNCT_Backup_LUKS_Headers(){
 
 	printf '[%bINFO%b] Encrypting compressed archive\n' $YELLOW $NC >&2
 	#Encrypt the compressed archive using the user's passphrase.
-	gpg --quiet --cipher-algo aes256 --digest-algo sha512 -c -a --passphrase `gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg` -o BACKUP_OF_LUKS_HEADERS.tar.gzip.asc BACKUP_OF_LUKS_HEADERS.tar.gzip
+	gpg --quiet --cipher-algo aes256 --digest-algo sha512 -c -a --passphrase "`gpg --quiet -d --passphrase $__key_passphrase__ /dev/shm/LUKS_PASSPHRASE.gpg`" -o BACKUP_OF_LUKS_HEADERS.tar.gzip.asc BACKUP_OF_LUKS_HEADERS.tar.gzip
 	####################################################################################
+
+	#If the encrypted LUKS-header archive does not exist or it's size is equal to zero, 
+	#exit the function as the rest of this function deals with the aforementioned file.
+	if [ ! -e BACKUP_OF_LUKS_HEADERS.tar.gzip.asc ] || [ ! -s BACKUP_OF_LUKS_HEADERS.tar.gzip.asc ]
+	then
+		printf '[%bWARN%b] Could not create encrypted LUKS-header archive do to above errors\n' $RED $NC >&2
+		return 1
+	fi
 
 	printf '[%bINFO%b] Shreding unencrypted LUKS-header archive\n' $YELLOW $NC >&2
 	#Shred unencrypted LUKS header image.
