@@ -97,6 +97,7 @@ Once networking is up you can <a href="#10-download">download</a> the script.
 
 | Drawbacks and Shortcomings |
 | --- |
+| Only EXT4 and EXT3 filesystems are supported |
 | mkinitcpio and initramfs-tools are the only supported initramfs generation utilities |
 | Only works with i386 and x86_64 systems |
 | Advanced LVM setups (such as mirrors) are most likely going to break the script |
