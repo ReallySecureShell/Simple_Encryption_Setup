@@ -203,7 +203,7 @@ EFI Example Setup
 
 ## 5.0: Planned Features
 
-| Features | Description |
+| Feature | Description |
 | :---     | :--- |
 | Dracut support | Support for the dracut init-generation utility |
 | Detached LUKS header | Choose to store the LUKS header on a separate medium |
