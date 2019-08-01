@@ -201,8 +201,6 @@ EFI Example Setup
 | Ubuntu 18.04 | None |
 | Manjaro 18.0 | None |
 
-<b>Note that the init generation utility is the real limiting-factor. Your distribution <i>should</i> still work if using any of the popular distros.</b>
-
 ## 5.0: Planned Features
 
 | Features | Description |
