@@ -33,10 +33,6 @@ Or use the shortend URL:
 
     curl --location 'https://tinyurl.com/y4ufmrcb' > encrypt.sh && chmod 744 encrypt.sh
 
-SHA256 Checksum
-
-    204d5561a2a518d8b1a1bcf933984957645e36da4ba8ced966554ad47acc4c1a  encrypt.sh
-
 ## 2.0: Pre-Setup
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
