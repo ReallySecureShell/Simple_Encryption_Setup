@@ -116,6 +116,7 @@ Below are known working partition setups. I want to make it clear that you DO NO
 
 Lastly, you can choose what partitions to encrypt during runtime. You can even opt to not encrypt your `/` partition.
 
+Just to be clear the diagram below depicts partition setups *before* encryption. You compare what is shown to your current setup to determine if your system is compatible.
 ```
   LEGEND (Without LVM)
 +---------------------+
