@@ -86,7 +86,7 @@ function FUNCT_mount_all_partitions_from_fstab(){
 
 	#Discover all partitions on the mounted filesystem. This is a function so its easier to control the execution of this one variable.
 	function __subfunct_discover_partitions(){
-		DISCOVER_PARTITIONS_FROM_FSTAB=`awk '/^[^#]/{if ($3 == "swap" || $3 == "tmpfs" || $2 == "/boot" || $2 == "/boot/efi");else print $1":"$2":"$3;}' /mnt/etc/fstab`
+		DISCOVER_PARTITIONS_FROM_FSTAB=`awk '/^[^#]/{if ($3 != "ext4" && $3 != "ext3" || $3 == "swap" || $3 == "tmpfs" || $2 == "/boot" || $2 == "/boot/efi");else print $1":"$2":"$3;}' /mnt/etc/fstab`
 	}
 	__subfunct_discover_partitions
 
@@ -1289,9 +1289,9 @@ function FUNCT_Backup_LUKS_Headers(){
 	#Generate a sha256 hash for each LUKS-header.
 	printf '[%bINFO%b] Generating a sha256 checksum for each LUKS-header\n' $YELLOW $NC >&2
 	cd /dev/shm/Header_Backups/
-	ls -1 * | xargs -i sudo sha256sum {} >> checksum.txt
-	cat checksum.txt
-	chmod 444 checksum.txt
+	ls -1 * | xargs -i sudo sha256sum {} >> sha256_checksum.txt
+	cat sha256_checksum.txt
+	chmod 444 sha256_checksum.txt
 	cd -
 
 	printf '[%bINFO%b] Creating LUKS-header archive\n' $YELLOW $NC >&2
@@ -1329,36 +1329,136 @@ function FUNCT_Backup_LUKS_Headers(){
 	chmod 444 BACKUP_OF_LUKS_HEADERS.tar.gzip.asc
 
 	#Create a new directory that will hold the LUKS backup image.
-	mkdir webserver_luks_headers_download/
-	mv BACKUP_OF_LUKS_HEADERS.tar.gzip.asc webserver_luks_headers_download/
-	printf '[%bINFO%b] LUKS-header archive moved to: %s\n' $YELLOW $NC `ls -1 webserver_luks_headers_download/BACKUP_OF_LUKS_HEADERS.tar.gzip.asc` >&2
+	mkdir luks_headers_directory/
+	mv BACKUP_OF_LUKS_HEADERS.tar.gzip.asc luks_headers_directory/
+	printf '[%bINFO%b] LUKS-header archive moved to: luks_headers_directory/\n' $YELLOW $NC >&2
+
+	#Keeps track of where the luks header is currently stored.
+	__LUKS_Header_directory='luks_headers_directory/'
 
 	#Setup an python http server that will be used to host the backup file for download.
 	function __subfunct_open_webserver_to_download_LUKS_backup(){
-		read -p 'Open a HTTP server to download the LUKS-header archive? (y)es (n)o (s)how_interfaces: '
+		trap 'printf "\n";return 0' SIGINT SIGQUIT
+
+		#Display menu items
+		cat << MENU
+Backup LUKS-header archive:
+[1]: Start HTTP Server
+[2]: Backup to a local medium
+[3]: Show IP addresses
+[4]: Display help page
+[5]: Quit
+MENU
+
+		read -p 'Choose option: '
 
 		case $REPLY in 
-			[yY])
+			'1')
 				#Trap statement that will handle exiting the python webserver.
 				trap 'cd -;return 0' SIGINT SIGQUIT
 
 				printf '[%bINFO%b] Starting webserver. CTRL-C when finished to continue...\n' $YELLOW $NC >&2
 
 				#Change to directory containing the LUKS header image.
-				cd webserver_luks_headers_download/
+				cd $__LUKS_Header_directory
 
 				#Start webserver on all interfaces.
 				python3 -m http.server
+
+				#Set trap BACK to previous
+				trap 'printf "\n";return 0' SIGINT SIGQUIT
 			;;
-			[nN])
-				return 0
+			'2')
+				function __subfunct_path_to_local_medium(){
+					while true;do
+						trap 'destination_does_not_exist='true';printf "\n";return 0' SIGINT
+						read -p 'Destination path (ex: /media/myUSB): '
+						if [ -z "$REPLY" ]
+						then
+							:
+						elif [ ! -d "$REPLY" ]
+						then
+							printf 'No such directory: %s\n' "$REPLY"
+						else
+							break
+						fi
+					done
+					#Check that the directory contains a mountpoint somewhere in its path.
+					for __SLASH_PLACEMENT__ in $(seq 1 `sed 's/\//&\n/g' <<< "$REPLY" | awk '/\// { count++ } END {print count}'`)
+					do
+						local ___break_up_directory___=($(sed -E 's/([^\/])(\/)/\1\n/'"$__SLASH_PLACEMENT__"'' <<< "$REPLY"))
+
+						if [[ "$(mountpoint ${___break_up_directory___[0]})" == "${___break_up_directory___[0]} is a mountpoint" ]]
+						then
+							local __valid_mountpoint_in_filepath__='True'
+							#Break once we confirm a mountpoint exists. 
+							#Since this all we are looking for while inside
+							#this loop.
+							break
+						fi
+					done
+
+					while true;do
+					if [ -z $__valid_mountpoint_in_filepath__ ]
+					then
+						printf '[%bINFO%b] Destination path does not contain a mountpoint\n' $YELLOW $NC >&2
+						__subfunct_path_to_local_medium
+						if [ ! -z $destination_does_not_exist ]
+						then
+							return 0
+						fi
+					else
+						printf '[%bINFO%b] Moving LUKS-header archive to: %s\n' $YELLOW $NC "$REPLY" >&2
+						sudo mv "$__LUKS_Header_directory/BACKUP_OF_LUKS_HEADERS.tar.gzip.asc" "$REPLY"
+
+						if [ $? == '0' ]
+						then
+							#Remove forward-slashes at end of PATH. (e.g. /path/to/dir/)
+							REPLY=$(sed 's/\/$//' <<< "$REPLY")
+
+							#Update PATH to the LUKS-header archive
+							__LUKS_Header_directory="$REPLY"
+						fi
+						return 0
+					fi
+					done
+				}
+				__subfunct_path_to_local_medium
 			;;
-			[sS])
+			'3')
 				#Display all IP addresses for all interfaces on the system.
 				ip address show |\
 				grep -Eo '^[0-9]+:(.*?):| inet ([0-9]+\.){1,3}([0-9]+)' |\
 				sed 's/[0-9]$/&\n/'
 				__subfunct_open_webserver_to_download_LUKS_backup
+			;;
+			'4')
+				cat << END_OF_HELP
+1:                  Start HTTP server that will host
+                    the LUKS-header archive. You would
+                    then use another device (Laptop, 
+                    Desktop, or even a phone) to download
+                    the file. Use (s) beforehand so you
+                    know the IP of the webserver (default 
+                    is to bind webserver to all interfaces).
+
+2:                  Move the LUKS-header archive to another
+                    local medium (e.g. a thumbdrive).
+
+                    Note: It is required that the destination
+                    path contains a mountpoint.
+
+3:                  Show IP addresses for all network interfaces.
+
+4:                  Display this help page.
+
+5:                  Exit this section.
+END_OF_HELP
+				__subfunct_open_webserver_to_download_LUKS_backup
+			;;
+			'5')
+				__skip_exit_confirmation__='True'
+				return 0
 			;;
 			*)
 				printf 'Invalid option!\n'
@@ -1367,8 +1467,33 @@ function FUNCT_Backup_LUKS_Headers(){
 		esac
 	}
 	__subfunct_open_webserver_to_download_LUKS_backup
+
+	function __subfunct_ask_if_key_header_backup_is_finished(){
+		if [ ! -z $__skip_exit_confirmation__ ]
+		then
+			return 0
+		fi
+
+		read -p 'Finished backup? (y)es (n)o: '
+
+		case $REPLY in
+			[yY])
+				return 0
+			;;
+			[nN])
+				__subfunct_open_webserver_to_download_LUKS_backup
+				__subfunct_ask_if_key_header_backup_is_finished
+			;;
+			*)
+				__subfunct_ask_if_key_header_backup_is_finished
+			;;
+		esac
+	}
+	__subfunct_ask_if_key_header_backup_is_finished
+
+	#Unset trap
+	trap - SIGINT SIGQUIT
 	unset counter
-	unset trap
 }
 FUNCT_Backup_LUKS_Headers
 
