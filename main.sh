@@ -404,12 +404,32 @@ function FUNCT_identify_all_partitions(){
 	}
 	__subfunct_show_partitions
 
+	#Function that the trap statement calls in order to cleanly exit the script.
+	function __subfunct_exit_cleanly(){
+		__subfunct_unmount
+		sudo umount /mnt/{dev,sys,proc}
+		sudo umount /mnt
+		exit 0
+	}
+
+	#Catch CTRL-C and exit cleanly
+	trap 'printf "\n";__subfunct_exit_cleanly' SIGINT
+
 	function __subfunct_confirm_partition_setup(){
-		#Prompt the user to confirm, edit, see the contents of /mnt/etc/fstab, show the current enteries in the array, re-populate the array, or abort (exit).
-		read -p 'Partition configuration alright? (y)es (e)dit (s)how_all (S)how_current (r)escan (a)bort: '
+cat << MENU
+Configure partitions:
+[1]: Confirm setup
+[2]: Edit configuration
+[3]: Show all partitions
+[4]: Show selected partitions
+[5]: Rescan partitions
+[6]: Display help page
+[7]: Quit
+MENU
+		read -p 'Choose option: '
 
 		case $REPLY in
-			[yY])
+			'1')
 				#If the user edited the array and it came-out to be null, then display an error message.
 				if [ -z $__deny_confirmation_until_array_is_repopulated ]
 				then
@@ -420,7 +440,7 @@ function FUNCT_identify_all_partitions(){
 					__subfunct_confirm_partition_setup
 				fi
 			;;
-			[eE])
+			'2')
 				#Do NOT update the unmount array if the partitions array is being edited. This is because if a partition is removed, then that partition will NOT be added when re-running the __subfunct_mount_filesystems function, this variable prevents that.
 				__do_not_update_unmount_array='True'
 
@@ -467,17 +487,17 @@ END_OF_HELP
 				#Recall current function
 				__subfunct_confirm_partition_setup
 			;;
-			's')
+			'3')
 				#Show all discovered partitions in the /etc/fstab
 				__subfunct_output_discovered_partitions_to_buffer 'show'
 				__subfunct_confirm_partition_setup
 			;;
-			'S')
+			'4')
 				#Show configuration currently loaded into the array
 				__subfunct_show_partitions
 				__subfunct_confirm_partition_setup
 			;;
-			'r')
+			'5')
 				unset __do_not_update_unmount_array
 				unset __deny_confirmation_until_array_is_repopulated
 				#Re-populate the array with enteries from the fstab, then echo the loaded config in the array.
@@ -487,12 +507,32 @@ END_OF_HELP
 				__subfunct_show_partitions
 				__subfunct_confirm_partition_setup
 			;;
-			'a')
-				#Unmount partitions, if any other than / or bindings (sys, dev, proc) where mounted.
-				__subfunct_unmount
-				sudo umount /mnt/{dev,sys,proc}
-				sudo umount /mnt
-				exit 0
+			'6')
+				cat << END_OF_HELP
+1:                 Confirm partition setup and continue.
+
+2:                 Edit partition configuration. This is
+                   where you can choose what partitions
+                   are to be encrypted.
+
+3:                 Show all compatible partitions.
+
+4:                 Show currently selected partitions.
+
+5:                 Rescan. Used to reset the selected
+                   partitions back to its original
+                   value, i.e. all compatible
+                   partitions.
+
+6:                 Display this help page.
+
+7:                 Exit script.
+END_OF_HELP
+				__subfunct_confirm_partition_setup
+			;;
+			'7')
+				#Call cleanup function to exit cleanly
+				__subfunct_exit_cleanly
 			;;
 			*)
 				printf 'Invalid Option\n'
@@ -507,6 +547,9 @@ END_OF_HELP
 
 	#Unmount the bindings from the mounted filesystem.
 	sudo umount /mnt/{dev,sys,proc}
+
+	#Unset trap for CTRL-C
+	trap - SIGINT
 }
 FUNCT_identify_all_partitions
 
@@ -799,15 +842,15 @@ function FUNCT_add_encrypted_partitions_to_crypttab_and_modify_fstab(){
 	#The option tells luks weather or not to allow TRIMMING for FLASH
 	#devices, such as SSDs.
 	function __subfunct_trim(){
-		read -p 'Allow TRIM operations for solid-state drives? (y/N): '
+		read -p 'Allow TRIM operations for solid-state drives? (yes/no): '
 
 		#Using the default $REPLY variable since it is automatically assigned anyway.
 		#And it saves writting a variable that will be used only once.
 		case $REPLY in
-			[yY])
+			'yes')
 				discard=',discard'
 			;;
-			[nN])
+			'no')
 				discard=''
 			;;
 			*)
@@ -1087,15 +1130,27 @@ else
 	printf 'Will encrypt the following SWAP devices:\n'
 	for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
 	do
-		echo $i
+		echo "Selected: $i"
 	done
 
 	#Function for handeling editing (primarily) of the swap array. It provides options for the user.
 	function __subfunct_prep_for_encrypting_swap(){
-		read -p 'Swap configuration alright? (y)es (e)dit (s)how_all (S)how_selected (r)escan (a)bort: '
+		trap 'printf "\n";abortCreatingEncryptedSwap="True";return 0' SIGINT
+		cat << MENU
+Configure swap:
+[1]: Confirm setup
+[2]: Edit configuration
+[3]: Show all swap partitions
+[4]: Show selected swap partitions
+[5]: Rescan swap partitions
+[6]: Display help page
+[7]: Abort configuration
+MENU
+
+		read -p 'Choose option: '
 
 		case $REPLY in
-			[yY])
+			'1')
 				#if array is NOT empty exit the function without setting anything
 				if [ ! -z $__SWAP_FILESYSTEMS_ARRAY__ ]
 				then
@@ -1107,7 +1162,11 @@ else
 					return 0
 				fi
 			;;
-			[eE])
+			'2')
+				cat << END_OF_HELP > swap_devices
+#Place a '#' at the beginning of a line to exclude it from the list.
+END_OF_HELP
+
 				#Output the contents of the swap array into a file, then unset the swap array (since items will then be appended).
 				for __SWAP_DEVICE__ in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
 				do
@@ -1118,6 +1177,8 @@ else
 
 				#Edit/add valid swap enteries
 				nano swap_devices
+
+				sed -Ei '/^\#.*/d;/^$/d;/^\ .*$/d' swap_devices
 
 				#Refresh the array of SWAP devices
 				counter=0
@@ -1135,42 +1196,66 @@ else
 				unset counter
 				rm swap_devices
 
-				printf 'New SWAP device(s)\n'
 				for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
 				do
-					echo $i
+					echo "Selected: $i"
+
 				done
 				__subfunct_prep_for_encrypting_swap
 			;;
-			's')
+			'3')
 				#Show all swap devices that are discoverable.
-				sudo chroot /mnt blkid -t TYPE="swap" -o device
+				for i in `sudo chroot /mnt blkid -t TYPE="swap" -o device`
+				do
+					echo "Discovered: $i"
+				done
 				__subfunct_prep_for_encrypting_swap
 			;;
-			'S')
+			'4')
 				#Show the current swap devices in the array. Generally this will be the same as output of 's' (the code above this one).
-				if [ ! -z ${__SWAP_FILESYSTEMS_ARRAY__[@]} ]
+				if [[ ! -z ${__SWAP_FILESYSTEMS_ARRAY__[@]} ]]
 				then
 					for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
 					do
-						echo $i
+						echo "Selected: $i"
 					done
 				else
 					printf 'No swap devices configured. If you believe this is a mistake\nrun (r)escan to re-populate the swap enteries.\n'
 				fi
 				__subfunct_prep_for_encrypting_swap
 			;;
-			'r')
+			'5')
 				#Recall the function that populates the array, show what was found, then recall the options menu.
 				___DISCOVER_SWAP_FILESYSTEMS___
 				for i in ${__SWAP_FILESYSTEMS_ARRAY__[@]}
 				do
-					echo $i
+					echo "Discovered: $i"
 				done
 				__subfunct_prep_for_encrypting_swap
 			;;
-			'a')
-				#Exit funtion and abort setup of swap devices.
+			'6')
+				cat << END_OF_HELP
+1:                 Confirm current swap configuration.
+
+2:                 Edit swap configuration. You can choose
+                   what swap partitions to configure.
+
+3:                 Show all discoverable swap partitions.
+
+4:                 Show current swap configuration.
+
+5:                 Rescan swap partitions. This will
+                   reset all currently selected swap
+                   partitions.
+
+6:                 Display this help page.
+
+7:                 Abort configuring swap partitions.
+END_OF_HELP
+				__subfunct_prep_for_encrypting_swap
+			;;
+			'7')
+				#Exit function and abort setup of swap devices.
 				abortCreatingEncryptedSwap='True'
 				return 0
 			;;
@@ -1181,6 +1266,9 @@ else
 		esac
 	}
 	__subfunct_prep_for_encrypting_swap
+
+	#Unset trap for CTRL-C
+	trap - SIGINT
 
 	if [ -z $abortCreatingEncryptedSwap ]
 	then
@@ -1474,13 +1562,13 @@ END_OF_HELP
 			return 0
 		fi
 
-		read -p 'Finished backup? (y)es (n)o: '
+		read -p 'Finished backup? yes/no: '
 
 		case $REPLY in
-			[yY])
+			'yes')
 				return 0
 			;;
-			[nN])
+			'no')
 				__subfunct_open_webserver_to_download_LUKS_backup
 				__subfunct_ask_if_key_header_backup_is_finished
 			;;
