@@ -23,7 +23,7 @@ This script uses cryptsetup to add encryption to all partitions defined in your 
 
 ## 1.0: Download
 
-<b>Please read the <a href="#40-drawbacks-and-shortcomings">Drawbacks and Shortcomings</a> section before using the program.</b>
+<b>Please read the <a href="#40-things-to-note-before-using-the-program">Things to note before using the program</a> section before using the program.</b>
 
 Once in the Clonezilla terminal (see section <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>) you can download the script with one of the following commands.
 
