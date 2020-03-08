@@ -29,12 +29,6 @@ If you need an image writer you can <a href="http://wiki.rosalab.ru/ru/images/2/
 
 It is recommended that you use Clonezilla as it's the OS where the script is tested on. This way you can be sure the system has all the required dependencies.
 
-### Backup Your System
-
-Now boot into the Clonezilla USB you've just made. <b>You will also need another drive (that isn't the one you're encrypting) to store the device image</b>.
-
-Instructions how to perform a backup with clonezilla can be found <a href="https://www.unixmen.com/backup-clone-disk-linux-using-clonezilla/">here</a>
-
 ### Setup Clonezilla Environment
 
 Once the backup is finished boot into the Clonezilla terminal. This can be done by selecting `Enter_shell` when prompted.
