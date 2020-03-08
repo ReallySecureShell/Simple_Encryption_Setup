@@ -10,9 +10,6 @@ This tool can be used to encrypt your Linux system post-installation without los
 
 ## 1.0: Pre-Setup
 
-You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
-A good choice is to burn a Clonezilla ISO to a USB and boot from that.<br>
-
 ### Required Packages
 
 The package: <b>cryptsetup</b> is required. <b>You must install this package on the target system <i>before</i> encrypting</b>.
@@ -20,15 +17,15 @@ The package: <b>cryptsetup</b> is required. <b>You must install this package on 
     sudo apt update
     sudo apt install cryptsetup
 
-You <b>must</b> also be using `initramfs-tools` as your initramfs generation utility. Debian and Debian-based systems rely on initramfs-tools to generate their initramfs. If you don't have initramfs-tools installed, or are NOT on a Debian or Debian-based system, then this program is not recommended.
+You <b>must</b> also be using `initramfs-tools` as your initramfs generation utility. Debian and Debian-based systems rely on initramfs-tools to generate their initramfs. If you do not have initramfs-tools installed, or are NOT on a Debian or Debian-based system, then this script is not recommended.
 
 ### Obtain Clonezilla
+
+You cannot encrypt your system while it is in use, so you need to boot from a USB in-order to run this script. It is recommended that you use Clonezilla as it is the OS where the script is tested on. This way you can be sure the system has all the required dependencies.
 
 <a href="https://mirrors.xtom.com/osdn/clonezilla/71822/clonezilla-live-2.6.4-10-amd64.iso">Download the Clonezilla ISO</a>
 
 If you need an image writer you can <a href="http://wiki.rosalab.ru/ru/images/2/24/RosaImageWriter-2.6.1-lin-x86_64.txz">download</a> RosaImageWriter.
-
-It is recommended that you use Clonezilla as it's the OS where the script is tested on. This way you can be sure the system has all the required dependencies.
 
 ### Setup Clonezilla Environment
 
