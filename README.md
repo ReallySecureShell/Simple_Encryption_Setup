@@ -22,7 +22,7 @@ The package: <b>cryptsetup</b> is required. <b>You must install this package on 
 
 You <b>must</b> also be using `initramfs-tools` as your initramfs generation utility.
 
-### Obtain Clonezilla and Image Writter
+### Obtain Clonezilla
 
 <a href="https://mirrors.xtom.com/osdn/clonezilla/71822/clonezilla-live-2.6.4-10-amd64.iso">Download the Clonezilla ISO</a>
 
