@@ -11,7 +11,7 @@ This tool can be used to encrypt your Linux system post-installation without los
 ## 1.0: Pre-Setup
 
 You <b>cannot</b> encrypt your system while it's in use. You must boot into another system to run this script.
-A good choice is to burn a Clonezilla ISO to a USB drive.<br>
+A good choice is to burn a Clonezilla ISO to a USB and boot from that.<br>
 
 ### Required Packages
 
