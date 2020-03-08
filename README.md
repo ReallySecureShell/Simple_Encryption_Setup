@@ -23,13 +23,11 @@ You <b>must</b> also be using `initramfs-tools` as your initramfs generation uti
 
 ### Obtain Clonezilla and Image Writter
 
-<a href="https://mirrors.xtom.com/osdn//clonezilla/71030/clonezilla-live-2.6.1-25-amd64.iso">Download the Clonezilla ISO</a>
+<a href="https://mirrors.xtom.com/osdn/clonezilla/71822/clonezilla-live-2.6.4-10-amd64.iso">Download the Clonezilla ISO</a>
 
 If you need an image writer you can <a href="http://wiki.rosalab.ru/ru/images/2/24/RosaImageWriter-2.6.1-lin-x86_64.txz">download</a> RosaImageWriter.
 
 It is recommended that you use Clonezilla as it's the OS where the script is tested on. This way you can be sure the system has all the required dependencies.
-
-If you have a version of Clonezilla already, <b>make sure it's at least version `2.6.1-25`</b>. Earlier versions have a problem with chrooting that causes a <i>bus error</i> to be thrown.
 
 ### Backup Your System
 
