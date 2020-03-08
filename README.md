@@ -14,6 +14,7 @@ You <b>cannot</b> encrypt your system while it's in use. You must boot into anot
 A good choice is to burn a Clonezilla ISO to a USB drive.<br>
 
 ### Required Packages
+
 The package: <b>cryptsetup</b> is required. <b>You must install this package on the target system <i>before</i> encrypting</b>.
 
     sudo apt update
@@ -31,7 +32,7 @@ It is recommended that you use Clonezilla as it's the OS where the script is tes
 
 ### Setup Clonezilla Environment
 
-Once the backup is finished boot into the Clonezilla terminal. This can be done by selecting `Enter_shell` when prompted.
+Boot into the Clonezilla terminal. This can be done by selecting `Enter_shell` when prompted.
 
 <img src="./Assets/Clonezilla_backup_step_1.png" width="85%" />
 
@@ -47,9 +48,8 @@ If you are <b>not</b> on a wired connection use the following to setup WIFI:
 nmtui
 ```
 
-Once networking is up you can use `netcat` to transfer the script from another device to the Clonezilla machine.
-
 ## 2.0: Usage
+
 ```
 ./SimpleEncryptionSetup.sh -fvh -p 'partition1:mountpoint1[ partitionN:mountpointN]' -r root-partition [-e efi-partition {-d DIR}]
 
