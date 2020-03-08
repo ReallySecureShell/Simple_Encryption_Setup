@@ -20,7 +20,7 @@ The package: <b>cryptsetup</b> is required. <b>You must install this package on 
     sudo apt update
     sudo apt install cryptsetup
 
-You <b>must</b> also be using `initramfs-tools` as your initramfs generation utility.
+You <b>must</b> also be using `initramfs-tools` as your initramfs generation utility. Debian and Debian-based systems rely on initramfs-tools to generate their initramfs. If you don't have initramfs-tools installed, or are NOT on a Debian or Debian-based system, then this program is not recommended.
 
 ### Obtain Clonezilla
 
