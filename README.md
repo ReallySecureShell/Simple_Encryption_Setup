@@ -4,7 +4,7 @@ This tool can be used to encrypt your Linux system post-installation without los
 
 * <a href="#10-pre-setup">1.0: Pre-Setup</a>
   * <a href="#required-packages">Required Packages</a>
-  * <a href="#obtain-clonezilla-and-image-writter">Obtain Clonezilla and Image Writter</a>
+  * <a href="#obtain-clonezilla">Obtain Clonezilla</a>
   * <a href="#setup-clonezilla-environment">Setup Clonezilla Environment</a>
 * <a href="#20-usage">2.0: Usage</a>
 
