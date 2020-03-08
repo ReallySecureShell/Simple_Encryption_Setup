@@ -6,6 +6,7 @@ This tool can be used to encrypt your Linux system post-installation without los
   * <a href="#required-packages">Required Packages</a>
   * <a href="#obtain-clonezilla-and-image-writter">Obtain Clonezilla and Image Writter</a>
   * <a href="setup-clonezilla-environment">Setup Clonezilla Environment</a>
+* <a href="#20-usage">2.0: Usage</a>
 
 ## 1.0: Pre-Setup
 
@@ -56,4 +57,32 @@ nmtui
 
 Once networking is up you can use `netcat` to transfer the script from another device to the Clonezilla machine.
 
+## 2.0: Usage
+```
+./SimpleEncryptionSetup.sh -fvh -p 'partition1:mountpoint1[ partitionN:mountpointN]' -r root-partition [-e efi-partition {-d DIR}]
 
+-p, --partitions 'partition1:mountpoint1[ partitionN:mountpointN]'  Specify the partition(s) to encrypt.
+                                                                    Example: '/dev/sda1:/ /dev/sda2:/home'
+                                                                    
+-r, --root <root-partition>                                         The root partition. This can be either
+                                                                    /dev/sd*, or if using LVM /dev/mapper/<root-name>.
+                                                                    Example: /dev/sda1
+                                                                    
+-e, --efi <efi-partition>                                           Specify the EFI partition.
+                                                                    Example: /dev/sda3
+                                                                    
+    -d, --efi-path <DIR>                                            The directory in /mnt/boot/efi/EFI/ where grub will be installed.
+                                                                    This directory MUST already exist. If lost, 'ls' the directories 
+                                                                    in said EFI path and find a file named grubx64.efi, if the directory 
+                                                                    contains that file it's probably the right one. This directory is also 
+                                                                    used as the bootloader-id.
+                                                                    Example: ubuntu
+                                                                    
+-f, --fake                                                          Do not make modifications to the system. This is used
+                                                                    to check the output for errors *before* modifying
+                                                                    the system.
+
+-v, --version                                                       Print version information then exit.
+                                                                    
+-h, --help                                                          Print this help page then exit.
+```
