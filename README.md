@@ -60,11 +60,13 @@ nmtui
 -e, --efi <efi-partition>                                           Specify the EFI partition.
                                                                     Example: /dev/sda3
                                                                     
-    -d, --efi-path <DIR>                                            The directory in /mnt/boot/efi/EFI/ where grub will be installed.
-                                                                    This directory MUST already exist. If lost, 'ls' the directories 
-                                                                    in said EFI path and find a file named grubx64.efi, if the directory 
-                                                                    contains that file it's probably the right one. This directory is also 
-                                                                    used as the bootloader-id.
+    -d, --efi-path <DIR>                                            The directory in /mnt/boot/efi/EFI/ where 
+                                                                    grub will be installed. This directory MUST 
+                                                                    already exist. If lost, 'ls' the directories 
+                                                                    in said EFI path and find a file named grubx64.efi, 
+                                                                    if the directory contains that file it's probably 
+                                                                    the right one. This directory is also used as the 
+                                                                    bootloader-id.
                                                                     Example: ubuntu
                                                                     
 -f, --fake                                                          Do not make modifications to the system. This is used
