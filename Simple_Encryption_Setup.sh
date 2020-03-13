@@ -1,41 +1,5 @@
 #!/usr/bin/env bash
 
-
-# LICENSE
-#This is free and unencumbered software released into the public domain.
-#
-#Anyone is free to copy, modify, publish, use, compile, sell, or
-#distribute this software, either in source code form or as a compiled
-#binary, for any purpose, commercial or non-commercial, and by any
-#means.
-#
-#In jurisdictions that recognize copyright laws, the author or authors
-#of this software dedicate any and all copyright interest in the
-#software to the public domain. We make this dedication for the benefit
-#of the public at large and to the detriment of our heirs and
-#successors. We intend this dedication to be an overt act of
-#relinquishment in perpetuity of all present and future rights to this
-#software under copyright law.
-#
-#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-#EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-#MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-#IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-#OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-#ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-#OTHER DEALINGS IN THE SOFTWARE.
-#
-#For more information, please refer to <https://unlicense.org>
-#
-
-## NOTES
-#
-# Sort the MOUNTPOINTS and VOLUME_NAMES arrays, but only when we are using them to mount partitions. This is so we won't try to mount to a directory that is within a partition that hasn't been mounted yet.
-# The command to sort the arrays looks like this: IFS=$'\n' array=($(sort <<<"${array[*]}"))
-# Also we can do a mount -a but point it to the /mnt/etc/fstab. The encrypted partitions won't get mounted, but everything unencrypted will.
-#
-##
-
 help(){
 cat << END_OF_HELP
 ./SimpleEncryptionSetup.sh -fvh -p 'partition1:mountpoint1[ partitionN:mountpointN]' -r root-partition [-e efi-partition {-d DIR}]
@@ -50,11 +14,13 @@ cat << END_OF_HELP
 -e, --efi <efi-partition>                                           Specify the EFI partition.
                                                                     Example: /dev/sda3
                                                                     
-    -d, --efi-path <DIR>                                            The directory in /mnt/boot/efi/EFI/ where grub will be installed.
-                                                                    This directory MUST already exist. If lost, 'ls' the directories 
-                                                                    in said EFI path and find a file named grubx64.efi, if the directory 
-                                                                    contains that file it's probably the right one. This directory is also 
-                                                                    used as the bootloader-id.
+    -d, --efi-path <DIR>                                            The directory in /mnt/boot/efi/EFI/ where 
+                                                                    grub will be installed. This directory MUST 
+                                                                    already exist. If lost, 'ls' the directories 
+                                                                    in said EFI path and find a file named grubx64.efi, 
+                                                                    if the directory contains that file it's probably 
+                                                                    the right one. This directory is also used as the 
+                                                                    bootloader-id.
                                                                     Example: ubuntu
                                                                     
 -f, --fake                                                          Do not make modifications to the system. This is used
@@ -245,29 +211,43 @@ function promptForVolumePassword(){
 		printf 'Passphrase must not be empty\n'
 		promptForVolumePassword
 	fi
+	
+	printf '%s' "${PASSPHRASE[0]}" > luksPassphrase.txt
 }
 promptForVolumePassword
 
-function encryptVolume(){
-	sudo e2fsck -fy $1
-
-	sudo resize2fs -M $1
-
-	echo -n "${PASSPHRASE[0]}" | sudo cryptsetup-reencrypt --key-file=- --new --type=luks1 --reduce-device-size 4096S $1
-
-	echo -n "${PASSPHRASE[0]}" | sudo cryptsetup --key-file=- open $1 $2
-
-	sudo resize2fs /dev/mapper/$2
-}
-for key in ${!PARTITIONS[@]}
-do
-	printf '[INFO] Encrypting %s\n' ${PARTITIONS[$key]}
-
+function createKeyfile(){
+	printf '[INFO] Creating keyfile: unlock.key\n'
 	if [ -z $operationGeneralDeny ]
 	then
-		encryptVolume ${PARTITIONS[$key]} ${VOLUME_NAMES[$key]}
+        dd if=/dev/urandom bs=4096 count=1 2>/dev/null | base64 | xargs -i printf '%s' {} | sudo tee unlock.key 1>/dev/null
 	fi
-done
+}
+createKeyfile
+
+function encryptPartitions(){
+    for counter in ${!PARTITIONS[@]}
+    do
+        printf '[INFO] Encrypting %s\n' ${PARTITIONS[$counter]}
+    
+        if [ -z $operationGeneralDeny ]
+        then
+            sudo e2fsck -fy ${PARTITIONS[$counter]}
+            sudo resize2fs -M ${PARTITIONS[$counter]}
+            
+            printf '%s' $(cat unlock.key) | sudo cryptsetup-reencrypt --key-file=- --new --type=luks1 --reduce-device-size 4096S ${PARTITIONS[$counter]}
+            
+            printf '%s' $(cat unlock.key) | sudo cryptsetup --key-file=- open ${PARTITIONS[$counter]} ${VOLUME_NAMES[$counter]}
+            sudo resize2fs /dev/mapper/${VOLUME_NAMES[$counter]}
+            
+            if [ ${VOLUME_NAMES[$counter]} == 'root' ]
+            then
+                printf '%s' $(cat unlock.key) | sudo cryptsetup --key-file=- luksAddKey ${PARTITIONS[$counter]} luksPassphrase.txt
+            fi
+        fi
+    done
+}
+encryptPartitions
 
 function mountPartitions(){
     if [ ! -z $rootFilesystemIsEncrypted ] && [ -z $operationGeneralDeny ]
@@ -369,11 +349,11 @@ function configureFSTAB(){
 configureFSTAB
 
 function configureAutoDecryptionInInitramfs(){
-	printf '[INFO] Configuring initramfs to automatically unlock encrypted partition(s)\n' $initramfsUtility
-
-    keyfile='/mnt/etc/initramfs-tools/scripts/unlock.key'
+    printf '[INFO] Configuring initramfs to automatically unlock encrypted partition(s)\n'
 
     printf '[INFO] Creating /mnt/etc/initramfs-tools/hooks/unlock.sh\n'
+    
+    printf '[INFO] Moving unlock.key into /mnt/etc/initramfs-tools/scripts/unlock.key\n'
 
     if [ -z $operationGeneralDeny ]
     then
@@ -384,32 +364,12 @@ cat /scripts/unlock.key
 exit 0
 EOF
         sudo chmod 100 /mnt/etc/initramfs-tools/hooks/unlock.sh
+        
+        sudo chmod 400 unlock.key
+        sudo mv unlock.key /mnt/etc/initramfs-tools/scripts/unlock.key
     fi
 }
 configureAutoDecryptionInInitramfs
-
-function createKeyfileAndItToLUKSPartitions(){
-	printf '[INFO] Creating keyfile: %s\n' $keyfile
-	if [ -z $operationGeneralDeny ]
-	then
-		dd if=/dev/urandom bs=4096 count=1 2>/dev/null | base64 | sudo tee $keyfile 1>/dev/null
-		sudo chmod 400 $keyfile
-	fi
-
-	for counter in ${!PARTITIONS[@]}
-	do
-        for LUKSVolume in ${PARTITIONS[$counter]}
-        do
-            printf '\t[%s]: Adding keyfile: %s to LUKS volume: %s\n' $counter $keyfile $LUKSVolume
-
-            if [ -z $operationGeneralDeny ]
-            then
-                echo -n "${PASSPHRASE[0]}" | sudo cryptsetup --key-file=- luksAddKey $LUKSVolume $keyfile
-            fi
-        done
-    done
-}
-createKeyfileAndItToLUKSPartitions
 
 function modifyGrub(){
 	printf '[INFO] Appending the following lines to /mnt/etc/default/grub:\n'
